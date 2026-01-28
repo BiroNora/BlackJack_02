@@ -1,11 +1,11 @@
 import type { ErrorResponse, SessionInitResponse } from "../types/game-types";
-import { generateUUID } from "../utilities/utils";
+import { v4 as uuidv4 } from 'uuid';
 
 export async function initializeSessionAPI(): Promise<SessionInitResponse> {
   // 1. Lekérjük/generáljuk a kliens egyedi azonosítóját (client_id) a böngésző localStorage-jából.
   let clientUuid = localStorage.getItem("blackjack_client_uuid");
   if (!clientUuid) {
-    clientUuid = generateUUID(); // Generálunk egy újat, ha még nincs
+    clientUuid = uuidv4(); // Generálunk egy újat, ha még nincs
     localStorage.setItem("blackjack_client_uuid", clientUuid); // Elmentjük a böngészőbe
   }
 
@@ -173,7 +173,7 @@ export async function callApiEndpoint<T>(
     if (method === "POST") {
       // Ha a body null vagy undefined, csinálunk egy üres objektumot
       const effectiveBody = (body ?? {}) as { idempotency_key?: string };
-      effectiveBody.idempotency_key = generateUUID();
+      effectiveBody.idempotency_key = uuidv4();
       body = effectiveBody;
     }
 
