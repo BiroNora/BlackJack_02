@@ -89,6 +89,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
   const isMountedRef = useRef(true);
   // Ez a védelmi zár (lock) az ismételt hívások ellen
   const isProcessingRef = useRef(false);
+  const isAppInitializedRef = useRef(false);
 
   // Állapotváltó funkció
   const transitionToState = useCallback(
@@ -511,6 +512,8 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     // --- LOADING ÁLLAPOT KEZELÉSE ---
     if (gameState.currentGameState === "LOADING") {
       const initializeApplicationOnLoad = async () => {
+        if (isAppInitializedRef.current) return;
+          isAppInitializedRef.current = true;
         try {
           // 1. Min. töltési idő beállítása
           const minLoadingTimePromise = new Promise((resolve) =>
@@ -540,7 +543,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           const userTokens = responseData.tokens;
           const deckLength = responseData.game_state.deck_len;
 
-          if (!isMountedRef.current) {
+          if (isMountedRef.current) {
             setInitDeckLen(deckLength);
           }
 
