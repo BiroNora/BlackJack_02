@@ -161,19 +161,28 @@ export interface HttpError extends Error {
   };
 }
 
+type ApiRequestBody = Record<string, unknown> | null | undefined;
+
 export async function callApiEndpoint<T>(
   endpoint: string,
-  method: string = "GET", // Alapértelmezett legyen GET, ha nincs megadva
-  body?: unknown
+  method: string = "GET",
+  body: ApiRequestBody = null
 ): Promise<T> {
   // <--- Visszatérési típus: Promise<T>
   try {
+    if (method === "POST") {
+      // Ha a body null vagy undefined, csinálunk egy üres objektumot
+      const effectiveBody = (body ?? {}) as { idempotency_key?: string };
+      effectiveBody.idempotency_key = generateUUID();
+      body = effectiveBody;
+    }
+
     const options: RequestInit = {
       method: method,
       headers: {
         "Content-Type": "application/json",
       },
-      body: body ? JSON.stringify(body) : undefined,
+      body: method !== "GET" ? JSON.stringify(body) : undefined,
     };
 
     const response = await fetch(endpoint, options);

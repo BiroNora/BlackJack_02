@@ -3,7 +3,6 @@ import uuid
 import logging
 import math
 from functools import wraps
-from urllib.parse import urlparse
 from dotenv import load_dotenv
 from sqlalchemy import select
 from flask import Flask, current_app, json, jsonify, render_template, request, session
@@ -11,10 +10,9 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta, timezone
 from flask_session import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.sql import func
 from psycopg2.errors import UniqueViolation
-
-from upstash_redis import Redis as UpstashRedisClient  # Upstash kliens átnevezve
-from redis import Redis as FlaskSessionRedisClient  # Hivatalos kliens importálva
 
 from my_app.backend.game import Game
 
@@ -35,119 +33,62 @@ app.config["SECRET_KEY"] = os.environ.get(
 
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=31)
 app.config["SESSION_COOKIE_SECURE"] = os.environ.get("VERCEL", "False") == "True"
+app.config["SESSION_COOKIE_HTTPONLY"] = True
 
-# =========================================================================
-# VERCEL REDIS SESSION SETUP
-# =========================================================================
-UPSTASH_REDIS_URL = os.environ.get("UPSTASH_REDIS_URL")
-UPSTASH_REDIS_TOKEN = os.environ.get("UPSTASH_REDIS_TOKEN")
-
-# A Flask-Session csomag nem szereti a None-t, ezért alapértelmezettként
-# a "filesystem"-et használjuk. Ez a biztonságos fallback.
-# app.config["SESSION_TYPE"] = "filesystem"
-app.config["SESSION_TYPE"] = "redis"
-app.config["SESSION_REDIS"] = None
-
-# Helyi kliens a Redis-ben tárolt játékállapot számára (ha a Redis működik)
-upstash_redis_client = None
-
-if not UPSTASH_REDIS_URL or not UPSTASH_REDIS_TOKEN:
-    print(
-        "!!! Hiba: UPSTASH_REDIS_URL vagy UPSTASH_REDIS_TOKEN nincs beállítva. Marad a Flask-Session alapértelmezett session (filesystem). !!!"
-    )
-else:
-    try:
-        # 1. Létrehozzuk az Upstash Redis klienst (Game State-hez)
-        upstash_redis_client = UpstashRedisClient(
-            url=UPSTASH_REDIS_URL, token=UPSTASH_REDIS_TOKEN
-        )
-
-        # 2. A HOST és PORT kinyerése a szabványos urllib.parse használatával (ez a legbiztosabb)
-        parsed_url = urlparse(UPSTASH_REDIS_URL)
-
-        host = parsed_url.hostname
-        port = parsed_url.port if parsed_url.port is not None else 6379
-
-        # Ellenőrzés, hogy a host és a port sikerült-e kinyerni
-        if not host or not port:
-            raise ValueError(
-                f"Redis URL formátumhiba: Nem sikerült kinyerni a hostot ({host}) vagy a portot ({port}) a megadott URL-ből."
-            )
-
-        # FlaskSessionRedisClient (standard redis-py) direkt inicializálása
-        flask_session_client = FlaskSessionRedisClient(
-            host=host,
-            port=port,
-            password=UPSTASH_REDIS_TOKEN,
-            ssl=True,  # Kötelező az Upstash-hoz (TLS)
-            ssl_cert_reqs="required",
-        )
-
-        # =========================================================================
-        # REDIS PING TEST AND CONFIG
-        # =========================================================================
-        if flask_session_client.ping():
-            # Csak sikeres ping esetén állítjuk be a Redis session-t
-            app.config["SESSION_TYPE"] = "redis"
-            app.config["SESSION_REDIS"] = flask_session_client
-            app.config["REDIS_CLIENT"] = (
-                upstash_redis_client  # Mentjük a Game State klienst
-            )
-
-            # print(f"!!! Redis ping sikeres: {flask_session_client.ping()} !!!")
-        else:
-            print(
-                "!!! Redis ping nem sikeres. Marad a Flask-Session alapértelmezett session. !!!"
-            )
-
-    except Exception as e:
-        # Ha bármelyik inicializálási kísérlet során hiba történik:
-        print(f"!!! Kritikus hiba a Redis konfigurálásakor: {e} !!!")
-        print(
-            "!!! Visszaállás Flask-Session alapértelmezett session-re a Redis kapcsolat hiba miatt. !!!"
-        )
-
-
-# 5. Inicializáljuk a Flask-Session-t
-sess = Session(app)
-# Ezzel a lépéssel a Flask "session" objektum minden használatakor a Redishez fordul.
 # =========================================================================
 # DATABASE SETUP (NEON POSTGRES)
 # =========================================================================
-# DATABASE_URL = os.environ.get('DATABASE_URL_SIMPLE', 'postgresql://player:pass@localhost:5433/blackjack_game')
 DATABASE_URL = os.environ.get(
     "DATABASE_URL_SIMPLE", "postgresql://player:pass@localhost:5433/blackjack_game"
 )
 
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-# Deploykor ez is környezeti változó legyen!
-# Cookie élettartama (opcionális, alapértelmezett a böngésző bezárásáig)
-# app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=31) # Pl. 31 napig tart a session
 
 db = SQLAlchemy(app)
 
+# =========================================================================
+# POSTGRES SESSION SETUP
+# =========================================================================
+# A sessionöket is a Postgresben tároljuk egy külön 'sessions' táblában
+#app.config["SESSION_TYPE"] = "sqlalchemy"
+#app.config["SESSION_SQLALCHEMY"] = db
+#app.config["SESSION_SQLALCHEMY_TABLE"] = "sessions"
+#
+#sess = Session(app)
+
+# Logging finomhangolás
 log = logging.getLogger("werkzeug")
 log.setLevel(logging.ERROR)
 
 
+# =========================================================================
+# MODELS
+# =========================================================================
 class User(db.Model):
-    __tablename__ = "users"
+    __tablename__ = "my_users"
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     client_id = db.Column(
         db.String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4())
     )
     tokens = db.Column(db.Integer, default=1000)
+    current_game_state = db.Column(JSONB, nullable=True)
+    idempotency_key = db.Column(db.String(36), nullable=True)
     last_activity = db.Column(
-        db.TIMESTAMP(timezone=True),
-        default=datetime.now(timezone.utc),
-        onupdate=datetime.now(timezone.utc),
+        db.TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
     def __repr__(self):
         return f"<User {self.id[:8]} (Client: {self.client_id[:8]})>"
 
 
+with app.app_context():
+    db.create_all()
+
+
+# =========================================================================
+# AUTH DECORATOR
+# =========================================================================
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -177,7 +118,6 @@ def login_required(f):
             )
 
         user.last_activity = datetime.now(timezone.utc)
-        db.session.commit()
 
         return f(user=user, *args, **kwargs)
 
@@ -185,62 +125,51 @@ def login_required(f):
 
 
 def with_game_state(f):
-    """
-    Betölti a 'game' állapotát a Redisből, átadja a függvénynek, majd menti.
-    FIGYELEM: Feltételezi, hogy a Game.deserialize() Python szótárat vár.
-    """
-
     @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # user lekérése a @login_required-től
-        user = kwargs.get("user")
+    def decorated_function(user, *args, **kwargs):
+        # 1. Alapvető ellenőrzés
+        if not user.current_game_state:
+            return jsonify({
+                "error": "Game state not initialized.",
+                "game_state_hint": "MISSING_GAME_STATE",
+            }), 400
 
-        if not user:
-            # Ez a hiba akkor fut le, ha a @login_required hiányzik vagy nem futott le.
-            raise Exception(
-                "A @with_game_state dekorátort a @login_required után kell használni."
-            )
+        # 2. IDEMPOTENCIA ELLENŐRZÉS
+        # Megpróbáljuk kiszedni a kulcsot a JSON body-ból
+        data = request.get_json(silent=True) or {}
+        ikey = data.get("idempotency_key")
 
-        redis_client = current_app.config.get("REDIS_CLIENT")
-        if not redis_client:
-            raise Exception("Server configuration error: Redis client missing.")
+        # Deszerializálunk (szükség van rá az idempotens válaszhoz is)
+        game = Game.deserialize(user.current_game_state)
 
-        redis_key = f"game:{user.id}"
-        redis_data_raw = redis_client.get(redis_key)
+        if ikey and user.idempotency_key == ikey:
+            # Ha a kulcs egyezik, nem futtatjuk le a függvényt (f),
+            # csak visszaadjuk az aktuális állapotot.
+            return jsonify({
+                "status": "success",
+                "idempotent": True,
+                "current_tokens": user.tokens,
+                "game_state": game.serialize_for_client_bets(), # Vagy egy általánosabb kliens-széria
+            }), 200
 
-        game = Game()  # Új játék alapértelmezettként
+        # 3. A végpont végrehajtása
+        response = f(user=user, game=game, *args, **kwargs)
 
-        # --- Játékállapot BETÖLTÉSE (LOAD) ---
-        if redis_data_raw:
-            try:
-                # EZ AZ A LOGIKA, AMI AZ ÖN FÜGGVÉNYEIBEN IS MŰKÖDÖTT:
-                # 1. Byte/string dekódolása és JSON betöltése Python szótárrá
-                if isinstance(redis_data_raw, bytes):
-                    redis_data_str = redis_data_raw.decode("utf-8")
-                else:
-                    redis_data_str = redis_data_raw
+        # 4. Automatikus mentés és Idempotencia kulcs frissítése
+        status_code = 200
+        if isinstance(response, tuple):
+            status_code = response[1]
+        elif hasattr(response, "status_code"):
+            status_code = response.status_code
 
-                redis_data = json.loads(redis_data_str)
+        if 200 <= status_code < 300:
+            user.current_game_state = game.serialize()
+            # Itt mentjük el az új kulcsot, hogy a következő azonos kérést már megfogjuk
+            if ikey:
+                user.idempotency_key = ikey
+            db.session.commit()
 
-                # 2. Szótár átadása a Game.deserialize-nek
-                game = Game.deserialize(redis_data)
-
-            except Exception as e:
-                # Deszerializációs hiba esetén új játék indítása
-                print(
-                    f"Hiba a Game deszerializálásakor ({user.id}): {e}. Új játék indítása."
-                )
-                game = Game()
-
-        # 1. Eredeti függvény futtatása, átadva a betöltött 'game' objektumot
-        result = f(*args, game=game, **kwargs)
-
-        # 2. Játékállapot MENTÉSE (SAVE) a Redisbe
-        # Feltételezzük, hogy a game.serialize() JSON stringet ad vissza.
-        # A set() automatikusan kezeli a string/bytes konverziót.
-        redis_client.set(redis_key, game.serialize())
-
-        return result
+        return response
 
     return decorated_function
 
@@ -252,6 +181,7 @@ def api_error_handler(f):
             return f(*args, **kwargs)  # Meghívjuk az eredeti végpont függvényt
         except ValueError as e:
             # Specifikus hiba (pl. pakli üres, érvénytelen adat)
+            db.session.rollback()
             print(f"Specifikus hiba az API végponton: {e}")
             return (
                 jsonify(
@@ -264,6 +194,7 @@ def api_error_handler(f):
                 400,
             )
         except Exception as e:
+            db.session.rollback()
             print(f"Váratlan szerver hiba az API végponton: {e}")
             return (
                 jsonify(
@@ -279,154 +210,72 @@ def api_error_handler(f):
     return decorated_function
 
 
-@app.route("/api/ping_redis", methods=["GET"])
-@api_error_handler
-def ping_redis():
-    """
-    Ellenőrzi a Redis adatbázis kapcsolatát a 'PING' paranccsal.
-    Diagnosztikai végpont.
-    """
-    # Lekérjük a Redis klienst a Flask app konfigurációjából
-    redis_client = app.config.get("REDIS_CLIENT")
-
-    if not redis_client:
-        # Ez a hiba akkor merül fel, ha a Redis inicializálása nem sikerült
-        # az alkalmazás indításakor, ami konfigurációs hiba.
-        raise Exception("A Redis kliens nem érhető el az alkalmazás konfigurációjában.")
-
-    # A ping() metódus True-t ad vissza sikeres kapcsolat esetén
-    if redis_client.ping():
-        # Teszt adat mentése és lekérése a teljes körű olvasási/írási ellenőrzéshez
-        test_key = "redis_connection_test_key"
-        test_value = "connection_success"
-
-        # Beállítunk egy kulcsot, ami 60 másodperc után lejár
-        redis_client.set(test_key, test_value, ex=60)
-        retrieved_value = redis_client.get(test_key)
-
-        if retrieved_value and retrieved_value.decode() == test_value:
-            return (
-                jsonify(
-                    {
-                        "status": "success",
-                        "message": "A Redis adatbázis elérhető és az olvasási/írási teszt sikeres.",
-                        "test_passed": True,
-                    }
-                ),
-                200,
-            )
-        else:
-            # Ezt elvileg nem szabadna elérni, de ha a ping megy, de az I/O nem, az komoly
-            raise Exception(
-                "A Redis ping sikeres, de az olvasási/írási teszt sikertelen."
-            )
-
-    # Ha a ping sikertelen, a ping() exceptiont dob, amit az api_error_handler kezel.
-    # Ha mégis idáig jut, valami ismeretlen hiba történt.
-    raise Exception("Ismeretlen hiba történt a Redis kapcsolódás során.")
-
-
 @app.route("/")
 def index():
     return render_template("index.html")
 
 
+# =========================================================================
+# GAME API ENDPOINTS
+# =========================================================================
 # 0
 @app.route("/api/initialize_session", methods=["POST"])
 @api_error_handler
 def initialize_session():
     """
-    Inicializálja a felhasználói sessiont (DB autentikáció, tokenek lekérése)
-    és betölti vagy létrehozza a felhasználó Game állapotát a Redisben.
+    Inicializálja a felhasználói sessiont a Postgres DB alapján.
     """
     data = request.get_json()
     client_id_from_request = data.get("client_id")
 
+    if not client_id_from_request:
+        return jsonify({"error": "Missing client_id"}), 400
+
+    # 1. Felhasználó keresése (vagy a session-ből, vagy client_id alapján)
     user_id_in_session = session.get("user_id")
     user = None
 
-    # ----------------------------------------------------------------------
-    # 1. DB: Felhasználó ellenőrzése, azonosítása vagy új létrehozása
-    # ----------------------------------------------------------------------
     if user_id_in_session:
         user = db.session.get(User, user_id_in_session)
-        if not user:
-            session.pop("user_id", None)
-
-    if not user and client_id_from_request:
-        stmt = select(User).filter_by(client_id=client_id_from_request)
-        user = db.session.execute(stmt).scalar_one_or_none()
 
     if not user:
+        # Ha a session-ben nincs meg, megkeressük client_id alapján
+        user = User.query.filter_by(client_id=client_id_from_request).first()
+
+    # 2. Új felhasználó létrehozása, ha még nem létezik
+    if not user:
         try:
-            user = User(client_id=client_id_from_request)
+            # Létrehozunk egy alap játékállapotot az új usernek
+            initial_game = Game()
+            user = User(
+                client_id=client_id_from_request,
+                tokens=1000,
+                current_game_state=initial_game.serialize(),
+            )
             db.session.add(user)
             db.session.commit()
-        except IntegrityError as e:
-            # Csak a UniqueViolation-t (ami IntegrityError-on keresztül érkezik) kezeljük
-            if isinstance(e.orig, UniqueViolation):
-                # Versenyhelyzet: A felhasználót épp most hozta létre egy másik kérés.
-                db.session.rollback()  # Visszaállítjuk a tranzakciót
-                print(
-                    f"Versenyhelyzet (UniqueViolation) a client_id={client_id_from_request} miatt. Újra megpróbáljuk lekérdezni."
-                )
+        except IntegrityError:
+            # Ha közben valaki más létrehozta, visszagördítünk és lekérjük
+            db.session.rollback()
+            user = User.query.filter_by(client_id=client_id_from_request).one()
 
-                # Visszakeressük a már létező felhasználót
-                stmt = select(User).filter_by(client_id=client_id_from_request)
-                user = db.session.execute(stmt).scalar_one_or_none()
-
-                if not user:
-                    # Ha még így sem találjuk, akkor kritikus hiba
-                    raise Exception(
-                        f"Kritikus hiba: Létrehozási hiba után sem találtuk a felhasználót: {client_id_from_request}"
-                    )
-            else:
-                raise e  # Egyéb integritási hiba továbbdobása
-    # ----------------------------------------------------------------------
-    # 2. DB & Session: Frissítés és beállítás
-    # ----------------------------------------------------------------------
-    user.last_activity = datetime.now(timezone.utc)
-    db.session.commit()
+    # 3. Session és állapot frissítése
     session["user_id"] = user.id
     session.permanent = True
 
-    # ----------------------------------------------------------------------
-    # 3. REDIS: Játékállapot (Game State) inicializálása vagy betöltése
-    # ----------------------------------------------------------------------
-    redis_client = app.config.get("REDIS_CLIENT")
-    game_state_for_client = {}
+    # A last_activity-t a modell automatikusan frissíti az onupdate miatt,
+    # de itt is beállíthatjuk.
+    user.last_activity = datetime.now(timezone.utc)
+    db.session.commit()
 
-    if not redis_client:
-        raise Exception("Server configuration error: Redis client missing.")
+    # 4. Játékállapot előkészítése a kliensnek
+    # A Postgres JSONB mezőjéből olvassuk ki
+    game_instance = (
+        Game.deserialize(user.current_game_state) if user.current_game_state else Game()
+    )
 
-    redis_key = f"game:{user.id}"
-    redis_data_raw = redis_client.get(redis_key)
-    game_instance = Game()
-
-    if redis_data_raw:
-        redis_client.delete(redis_key)
-        print(f"Régi Redis kulcs ({redis_key}) törölve az új session indításakor.")
-        try:
-            game_instance.clear_up()
-            game_instance.deck_len = game_instance.deck_len_init
-        except Exception as e:
-            # Hiba esetén új játék indítása
-            print(
-                f"Hiba a Game deszerializálásakor ({user.id}): {e}. Új játék indítása."
-            )
-    else:
-        # Nincs játékállás a Redisben: új játék indítása
-        game_instance = Game()
-
-    # Elmentjük a Game objektumot a Redisbe
-    redis_client.set(redis_key, game_instance.serialize())
-
-    # Szerializáljuk a Kliens számára szükséges publikus adatokat
     game_state_for_client = game_instance.serialize_for_client_init()
 
-    # ----------------------------------------------------------------------
-    # 4. Visszatérési érték (Összes adat egy válaszban)
-    # ----------------------------------------------------------------------
     return (
         jsonify(
             {
@@ -447,49 +296,18 @@ def initialize_session():
 @with_game_state
 @api_error_handler
 def bet(user, game):
-    data = request.get_json()
+    data = request.get_json() or {}
     bet_amount = data.get("bet", 0)
 
-    if not isinstance(bet_amount, (int, float)) or bet_amount <= 0:
-        return (
-            jsonify(
-                {
-                    "error": "Invalid bet amount.",
-                    "game_state_hint": "INVALID_BET_AMOUNT_TYPE",
-                }
-            ),
-            400,
-        )
-
-    if bet_amount < MINIMUM_BET:
-        return (
-            jsonify(
-                {
-                    "error": f"Bet must be at least {MINIMUM_BET} minimum.",
-                    "game_state_hint": "BET_BELOW_MINIMUM",
-                }
-            ),
-            400,
-        )
+    if not isinstance(bet_amount, (int, float)) or bet_amount < MINIMUM_BET:
+        raise ValueError(f"Bet must be at least {MINIMUM_BET}.")
 
     if user.tokens < bet_amount:
-        return (
-            jsonify(
-                {
-                    "error": "Not enough tokens.",
-                    "game_state_hint": "NOT_ENOUGH_TOKENS_FOR_BET",
-                }
-            ),
-            400,
-        )
-
-    user.tokens -= bet_amount
-    db.session.commit()
+        raise ValueError("Insufficient tokens.")
 
     game.set_bet(bet_amount)
     game.set_bet_list(bet_amount)
-    # A game state-et a VÉGÉN a @with_game_state automatikusan menti a Redisbe!
-    # Nincs szükség: db.session.commit() és redis_client.set(redis_key, game.serialize())
+    user.tokens -= bet_amount
 
     game_state_for_client = game.serialize_for_client_bets()
 
@@ -522,9 +340,7 @@ def retake_bet(user, game):
         )
 
     amount_to_return = game.retake_bet_from_bet_list()
-
     user.tokens += amount_to_return
-    db.session.commit()
 
     game_state_for_client = game.serialize_for_client_bets()
 
@@ -614,7 +430,6 @@ def ins_request(user, game):
         )
     ins = game.insurance_request()
     user.tokens += ins
-    db.session.commit()
 
     game_state_for_client = game.serialize_for_insurance()
 
@@ -662,8 +477,6 @@ def hit(user, game):
 @with_game_state
 @api_error_handler
 def double_request(user, game):
-    user.last_activity = datetime.now(timezone.utc)
-
     bet_amount_to_double = game.get_bet()
 
     if user.tokens < bet_amount_to_double:
@@ -682,7 +495,6 @@ def double_request(user, game):
 
     amount_deducted = game.double_request()
     user.tokens -= amount_deducted
-    db.session.commit()
     game.hit()
 
     game_state_for_client = game.serialize_double_state()
@@ -709,9 +521,7 @@ def double_request(user, game):
 @api_error_handler
 def rewards(user, game):
     token_change = game.rewards()
-
     user.tokens += token_change
-    db.session.commit()
 
     game_state_for_client = game.serialize_reward_state()
 
@@ -737,9 +547,7 @@ def rewards(user, game):
 def stand_and_rewards(user, game):
     game.stand()
     token_change = game.rewards()
-
     user.tokens += token_change
-    db.session.commit()
 
     game_state_for_client = game.serialize_reward_state()
 
@@ -764,8 +572,6 @@ def stand_and_rewards(user, game):
 @with_game_state
 @api_error_handler
 def split_request(user, game):
-    user.last_activity = datetime.now(timezone.utc)
-
     bet_amount = game.get_bet()
 
     if user.tokens < bet_amount:
@@ -808,7 +614,6 @@ def split_request(user, game):
 
     game.split_hand()
     user.tokens -= bet_amount
-    db.session.commit()  # Elmentjük a módosítást az adatbázisba!
 
     game_state_for_client = game.serialize_split_hand()
 
@@ -832,8 +637,6 @@ def split_request(user, game):
 @with_game_state
 @api_error_handler
 def add_to_players_list_by_stand(user, game):
-    user.last_activity = datetime.now(timezone.utc)
-
     game.add_to_players_list_by_stand()
 
     game_state_for_client = game.serialize_add_to_players_list_by_stand()
@@ -858,8 +661,6 @@ def add_to_players_list_by_stand(user, game):
 @with_game_state
 @api_error_handler
 def add_split_player_to_game(user, game):
-    user.last_activity = datetime.now(timezone.utc)
-
     if not game.players:
         return (
             jsonify(
@@ -896,8 +697,6 @@ def add_split_player_to_game(user, game):
 @with_game_state
 @api_error_handler
 def add_player_from_players(user, game):
-    user.last_activity = datetime.now(timezone.utc)
-
     if not game.players:
         return (
             jsonify(
@@ -958,8 +757,6 @@ def split_hit(user, game):
 @with_game_state
 @api_error_handler
 def split_double_request(user, game):
-    user.last_activity = datetime.now(timezone.utc)
-
     bet_amount_to_double = game.get_bet()
 
     if user.tokens < bet_amount_to_double:
@@ -978,7 +775,6 @@ def split_double_request(user, game):
 
     amount_deducted = game.double_request()
     user.tokens -= amount_deducted
-    db.session.commit()
     game.hit()
 
     game_state_for_client = game.serialize_split_hand()
@@ -1007,7 +803,6 @@ def double_stand_and_rewards(user, game):
     token_change = game.rewards()
 
     user.tokens += token_change
-    db.session.commit()
 
     game_state_for_client = game.serialize_split_stand_and_rewards()
 
@@ -1034,7 +829,6 @@ def set_restart(user, game):
     game.restart_game()
 
     user.tokens = 1000
-    db.session.commit()
 
     game_state_for_client = game.serialize_for_client_bets()
 
@@ -1060,7 +854,7 @@ def force_restart_by_client_id():
     A client_id alapján azonosítja a felhasználót, és visszaállítja a játékállapotot
     a tokenek elvesztése nélkül.
     """
-    data = request.get_json()
+    data = request.get_json() or {}
     client_id = data.get("client_id")
 
     if not client_id:
@@ -1074,21 +868,18 @@ def force_restart_by_client_id():
         return jsonify({"error": "User not found"}), 404
 
     # === Új session létrehozása a felhasználó számára ===
-    # Ez a lépés pótolja a hiányzó vagy törölt session cookie-t.
-    session.pop("game", None)  # Töröljük a régi, potenciálisan hibás játék sessiont
+    session.clear()  # Töröljük a régi, potenciálisan hibás játék sessiont
     session["user_id"] = user.id
     session.permanent = True
 
-    redis_client = current_app.config.get("REDIS_CLIENT")
-    redis_key = f"game:{user.id}"
-
-    # A játék egy új, alapértelmezett állapotból indul,
-    # mivel a régi játékállapot (pl. a bet) elveszett a sessionnel együtt.
+    # A játék egy új, alapértelmezett állapotból indul.
     game = Game()
     game.restart_game()
 
-    # Mentés a Redisbe, felülírva az esetlegesen hibás előző állapotot
-    redis_client.set(redis_key, game.serialize())
+    user.current_game_state = game.serialize()
+    user.idempotency_key = None
+
+    db.session.commit()
 
     return (
         jsonify(
@@ -1096,7 +887,7 @@ def force_restart_by_client_id():
                 "status": "success",
                 "current_tokens": user.tokens,
                 "game_state": game.serialize_for_client_bets(),
-                "game_state_hint": "HIT_RESTART",
+                "game_state_hint": "FORCE_RESTART_SUCCESSFUL",
             }
         ),
         200,
