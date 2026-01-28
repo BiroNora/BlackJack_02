@@ -5,14 +5,12 @@ import math
 from functools import wraps
 from dotenv import load_dotenv
 from sqlalchemy import select
-from flask import Flask, current_app, json, jsonify, render_template, request, session
+from flask import Flask, jsonify, render_template, request, session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta, timezone
-from flask_session import Session
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
-from psycopg2.errors import UniqueViolation
 
 from my_app.backend.game import Game
 
@@ -47,23 +45,13 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
 
-# =========================================================================
-# POSTGRES SESSION SETUP
-# =========================================================================
-# A sessionöket is a Postgresben tároljuk egy külön 'sessions' táblában
-#app.config["SESSION_TYPE"] = "sqlalchemy"
-#app.config["SESSION_SQLALCHEMY"] = db
-#app.config["SESSION_SQLALCHEMY_TABLE"] = "sessions"
-#
-#sess = Session(app)
-
 # Logging finomhangolás
 log = logging.getLogger("werkzeug")
 log.setLevel(logging.ERROR)
 
 
 # =========================================================================
-# MODELS
+# MODEL
 # =========================================================================
 class User(db.Model):
     __tablename__ = "my_users"
@@ -87,7 +75,7 @@ with app.app_context():
 
 
 # =========================================================================
-# AUTH DECORATOR
+# AUTH DECORATORS
 # =========================================================================
 def login_required(f):
     @wraps(f)
@@ -129,10 +117,15 @@ def with_game_state(f):
     def decorated_function(user, *args, **kwargs):
         # 1. Alapvető ellenőrzés
         if not user.current_game_state:
-            return jsonify({
-                "error": "Game state not initialized.",
-                "game_state_hint": "MISSING_GAME_STATE",
-            }), 400
+            return (
+                jsonify(
+                    {
+                        "error": "Game state not initialized.",
+                        "game_state_hint": "MISSING_GAME_STATE",
+                    }
+                ),
+                400,
+            )
 
         # 2. IDEMPOTENCIA ELLENŐRZÉS
         # Megpróbáljuk kiszedni a kulcsot a JSON body-ból
@@ -145,15 +138,23 @@ def with_game_state(f):
         if ikey and user.idempotency_key == ikey:
             # Ha a kulcs egyezik, nem futtatjuk le a függvényt (f),
             # csak visszaadjuk az aktuális állapotot.
-            return jsonify({
-                "status": "success",
-                "idempotent": True,
-                "current_tokens": user.tokens,
-                "game_state": game.serialize_for_client_bets(), # Vagy egy általánosabb kliens-széria
-            }), 200
+            return (
+                jsonify(
+                    {
+                        "status": "success",
+                        "idempotent": True,
+                        "current_tokens": user.tokens,
+                        "game_state": game.serialize_by_context(request.path),
+                    }
+                ),
+                200,
+            )
 
         # 3. A végpont végrehajtása
-        response = f(user=user, game=game, *args, **kwargs)
+        kwargs["user"] = user
+        kwargs["game"] = game
+
+        response = f(*args, **kwargs)
 
         # 4. Automatikus mentés és Idempotencia kulcs frissítése
         status_code = 200
@@ -179,20 +180,27 @@ def api_error_handler(f):
     def decorated_function(*args, **kwargs):
         try:
             return f(*args, **kwargs)  # Meghívjuk az eredeti végpont függvényt
+
         except ValueError as e:
             # Specifikus hiba (pl. pakli üres, érvénytelen adat)
             db.session.rollback()
-            print(f"Specifikus hiba az API végponton: {e}")
-            return (
-                jsonify(
-                    {
-                        "status": "error",
-                        "message": str(e),  # A ValueError üzenetét küldjük vissza
-                        "game_state_hint": "CLIENT_ERROR_SPECIFIC",  # Vagy egy specifikusabb hint
-                    }
-                ),
-                400,
-            )
+            game = kwargs.get("game")
+            user = kwargs.get("user")
+
+            response_data = {
+                "status": "error",
+                "message": str(e),
+                "game_state_hint": "CLIENT_ERROR_SPECIFIC",
+            }
+
+            if game:
+                # Hiba esetén is a kontextusnak megfelelő állapotot küldjük
+                response_data["game_state"] = game.serialize_by_context(request.path)
+            if user:
+                response_data["current_tokens"] = user.tokens
+
+            return jsonify(response_data), 400
+
         except Exception as e:
             db.session.rollback()
             print(f"Váratlan szerver hiba az API végponton: {e}")
@@ -228,7 +236,7 @@ def initialize_session():
     data = request.get_json()
     client_id_from_request = data.get("client_id")
 
-    if not client_id_from_request:
+    if not client_id_from_request or client_id_from_request == "undefined":
         return jsonify({"error": "Missing client_id"}), 400
 
     # 1. Felhasználó keresése (vagy a session-ből, vagy client_id alapján)
@@ -274,15 +282,13 @@ def initialize_session():
         Game.deserialize(user.current_game_state) if user.current_game_state else Game()
     )
 
-    game_state_for_client = game_instance.serialize_for_client_init()
-
     return (
         jsonify(
             {
                 "status": "success",
                 "message": "User and game session initialized.",
                 "tokens": user.tokens,
-                "game_state": game_state_for_client,
+                "game_state": game_instance.serialize_by_context(request.path),
                 "game_state_hint": "USER_SESSION_INITIALIZED",
             }
         ),
@@ -309,14 +315,12 @@ def bet(user, game):
     game.set_bet_list(bet_amount)
     user.tokens -= bet_amount
 
-    game_state_for_client = game.serialize_for_client_bets()
-
     return (
         jsonify(
             {
                 "status": "success",
                 "current_tokens": user.tokens,
-                "game_state": game_state_for_client,
+                "game_state": game.serialize_by_context(request.path),
                 "game_state_hint": "BET_SUCCESSFULLY_PLACED",
             }
         ),
@@ -332,24 +336,17 @@ def bet(user, game):
 def retake_bet(user, game):
     current_bet_list = game.get_bet_list()
     if not current_bet_list:
-        return (
-            jsonify(
-                {"error": "No bet to retake.", "game_state_hint": "BET_LIST_EMPTY"}
-            ),
-            400,
-        )
+        raise ValueError("No bet to retake.")
 
     amount_to_return = game.retake_bet_from_bet_list()
     user.tokens += amount_to_return
-
-    game_state_for_client = game.serialize_for_client_bets()
 
     return (
         jsonify(
             {
                 "status": "success",
                 "current_tokens": user.tokens,
-                "game_state": game_state_for_client,
+                "game_state": game.serialize_by_context(request.path),
                 "game_state_hint": "BET_SUCCESSFULLY_RETRAKEN",
             }
         ),
@@ -365,14 +362,12 @@ def retake_bet(user, game):
 def create_deck(user, game):
     game.create_deck()
 
-    game_state_for_client = game.serialize_for_client_bets()
-
     return (
         jsonify(
             {
                 "status": "success",
                 "current_tokens": user.tokens,
-                "game_state": game_state_for_client,
+                "game_state": game.serialize_by_context(request.path),
                 "game_state_hint": "DECK_CREATED",
             }
         ),
@@ -388,15 +383,13 @@ def create_deck(user, game):
 def start_game(user, game):
     game.initialize_new_round()
 
-    game_state_for_client = game.serialize_initial_and_hit_state()
-
     return (
         jsonify(
             {
                 "status": "success",
                 "message": "New round initialized.",
                 "current_tokens": user.tokens,
-                "game_state": game_state_for_client,
+                "game_state": game.serialize_by_context(request.path),
                 "game_state_hint": "NEW_ROUND_INITIALIZED",
             }
         ),
@@ -412,26 +405,13 @@ def start_game(user, game):
 def ins_request(user, game):
     bet = game.get_bet()
     insurance_amount = math.ceil(bet / 2)
+    game_state_for_client = game.serialize_by_context(request.path)
 
     if user.tokens < insurance_amount:
-        game_state_for_client = game.serialize_for_insurance()
-        return (
-            jsonify(
-                {
-                    "status": "error",
-                    "error": "Insufficient tokens.",
-                    "game_state_hint": "INSUFFICIENT_FUNDS",
-                    "required": insurance_amount,
-                    "available": user.tokens,
-                    "game_state": game_state_for_client,
-                }
-            ),
-            402,
-        )
+        raise ValueError("Insufficient tokens.")
+
     ins = game.insurance_request()
     user.tokens += ins
-
-    game_state_for_client = game.serialize_for_insurance()
 
     return (
         jsonify(
@@ -455,15 +435,13 @@ def ins_request(user, game):
 def hit(user, game):
     game.hit()
 
-    game_state_for_client = game.serialize_initial_and_hit_state()
-
     return (
         jsonify(
             {
                 "status": "success",
                 "tokens": user.tokens,
                 "current_tokens": user.tokens,
-                "game_state": game_state_for_client,
+                "game_state": game.serialize_by_context(request.path),
                 "game_state_hint": "HIT_RECIEVED",
             }
         ),
@@ -480,24 +458,11 @@ def double_request(user, game):
     bet_amount_to_double = game.get_bet()
 
     if user.tokens < bet_amount_to_double:
-        return (
-            jsonify(
-                {
-                    "status": "error",
-                    "error": "Insufficient tokens.",
-                    "game_state_hint": "INSUFFICIENT_FUNDS_FOR_DOUBLE",
-                    "required": bet_amount_to_double,
-                    "available": user.tokens,
-                }
-            ),
-            402,
-        )
+        raise ValueError("Insufficient tokens.")
 
     amount_deducted = game.double_request()
     user.tokens -= amount_deducted
     game.hit()
-
-    game_state_for_client = game.serialize_double_state()
 
     return (
         jsonify(
@@ -506,7 +471,7 @@ def double_request(user, game):
                 "message": "Double placed successfully.",
                 "double_amount": amount_deducted,
                 "current_tokens": user.tokens,
-                "game_state": game_state_for_client,
+                "game_state": game.serialize_by_context(request.path),
                 "game_state_hint": "DOUBLE_RECIEVED",
             }
         ),
@@ -523,15 +488,13 @@ def rewards(user, game):
     token_change = game.rewards()
     user.tokens += token_change
 
-    game_state_for_client = game.serialize_reward_state()
-
     return (
         jsonify(
             {
                 "status": "success",
                 "message": "Rewards processed and tokens updated.",
                 "current_tokens": user.tokens,
-                "game_state": game_state_for_client,
+                "game_state": game.serialize_by_context(request.path),
                 "game_state_hint": "REWARDS_PROCESSED",
             }
         ),
@@ -549,15 +512,13 @@ def stand_and_rewards(user, game):
     token_change = game.rewards()
     user.tokens += token_change
 
-    game_state_for_client = game.serialize_reward_state()
-
     return (
         jsonify(
             {
                 "status": "success",
                 "message": "Rewards processed and tokens updated.",
                 "current_tokens": user.tokens,
-                "game_state": game_state_for_client,
+                "game_state": game.serialize_by_context(request.path),
                 "game_state_hint": "REWARDS_PROCESSED",
             }
         ),
@@ -575,47 +536,13 @@ def split_request(user, game):
     bet_amount = game.get_bet()
 
     if user.tokens < bet_amount:
-        # Error válasz, ha nincs elég token.
-        # A 402-es státuszkód (Payment Required) is használható ilyen esetekben.
-        return (
-            jsonify(
-                {
-                    "status": "error",
-                    "error": "Insufficient tokens.",
-                    "game_state_hint": "INSUFFICIENT_FUNDS",
-                    "required": bet_amount,
-                    "available": user.tokens,
-                }
-            ),
-            402,
-        )
-    if not game.can_split(game.player["hand"]):
-        return (
-            jsonify(
-                {
-                    "status": "error",
-                    "error": "Split not possible.",
-                    "game_state_hint": "SPLIT_NOT_POSSIBLE_RULES",
-                }
-            ),
-            400,
-        )
-    if len(game.players) > 3:
-        return (
-            jsonify(
-                {
-                    "status": "error",
-                    "error": "Split not possible.",
-                    "game_state_hint": "MAX_SPLIT_HANDS_REACHED",
-                }
-            ),
-            400,
-        )
+        raise ValueError("Insufficient tokens.")
+
+    if not game.can_split(game.player["hand"]) or len(game.players) > 3:
+        raise ValueError("Split not possible.")
 
     game.split_hand()
     user.tokens -= bet_amount
-
-    game_state_for_client = game.serialize_split_hand()
 
     return (
         jsonify(
@@ -623,7 +550,7 @@ def split_request(user, game):
                 "status": "success",
                 "message": "Split hand placed successfully.",
                 "current_tokens": user.tokens,
-                "game_state": game_state_for_client,
+                "game_state": game.serialize_by_context(request.path),
                 "game_state_hint": "SPLIT_SUCCESS",
             }
         ),
@@ -639,7 +566,30 @@ def split_request(user, game):
 def add_to_players_list_by_stand(user, game):
     game.add_to_players_list_by_stand()
 
-    game_state_for_client = game.serialize_add_to_players_list_by_stand()
+    return (
+        jsonify(
+            {
+                "status": "success",
+                "message": "Split hand placed successfully.",
+                "current_tokens": user.tokens,
+                "game_state": game.serialize_by_context(request.path),
+                "game_state_hint": "NEXT_SPLIT_HAND_ACTIVATED",
+            }
+        ),
+        200,
+    )
+
+
+# 12
+@app.route("/api/add_split_player_to_game", methods=["POST"])
+@login_required
+@with_game_state
+@api_error_handler
+def add_split_player_to_game(user, game):
+    if not game.players:
+        raise ValueError("No more hands.")
+
+    game.add_split_player_to_game()
 
     return (
         jsonify(
@@ -647,7 +597,32 @@ def add_to_players_list_by_stand(user, game):
                 "status": "success",
                 "message": "Split hand placed successfully.",
                 "current_tokens": user.tokens,
-                "game_state": game_state_for_client,
+                "game_state": game.serialize_by_context(request.path),
+                "game_state_hint": "NEXT_SPLIT_HAND_ACTIVATED",
+            }
+        ),
+        200,
+    )
+
+
+# 13
+@app.route("/api/add_player_from_players", methods=["POST"])
+@login_required
+@with_game_state
+@api_error_handler
+def add_player_from_players(user, game):
+    if not game.players:
+        raise ValueError("No more hands.")
+
+    game.add_player_from_players()
+
+    return (
+        jsonify(
+            {
+                "status": "success",
+                "message": "Split hand placed successfully.",
+                "current_tokens": user.tokens,
+                "game_state": game.serialize_by_context(request.path),
                 "game_state_hint": "NEXT_SPLIT_HAND_ACTIVATED",
             }
         ),
@@ -656,78 +631,6 @@ def add_to_players_list_by_stand(user, game):
 
 
 # 14
-@app.route("/api/add_split_player_to_game", methods=["POST"])
-@login_required
-@with_game_state
-@api_error_handler
-def add_split_player_to_game(user, game):
-    if not game.players:
-        return (
-            jsonify(
-                {
-                    "status": "error",
-                    "error": "Nincs több splitelt kéz, amit aktiválni lehetne.",
-                    "game_state_hint": "NO_MORE_SPLIT_HANDS",
-                }
-            ),
-            400,
-        )
-
-    game.add_split_player_to_game()
-
-    game_state_for_client = game.serialize_split_hand()
-
-    return (
-        jsonify(
-            {
-                "status": "success",
-                "message": "Split hand placed successfully.",
-                "current_tokens": user.tokens,
-                "game_state": game_state_for_client,
-                "game_state_hint": "NEXT_SPLIT_HAND_ACTIVATED",
-            }
-        ),
-        200,
-    )
-
-
-# 15
-@app.route("/api/add_player_from_players", methods=["POST"])
-@login_required
-@with_game_state
-@api_error_handler
-def add_player_from_players(user, game):
-    if not game.players:
-        return (
-            jsonify(
-                {
-                    "status": "error",
-                    "error": "No more split hands.",
-                    "game_state_hint": "NO_MORE_SPLIT_HANDS",
-                }
-            ),
-            400,
-        )
-
-    game.add_player_from_players()
-
-    game_state_for_client = game.serialize_add_player_from_players()
-
-    return (
-        jsonify(
-            {
-                "status": "success",
-                "message": "Split hand placed successfully.",
-                "current_tokens": user.tokens,
-                "game_state": game_state_for_client,
-                "game_state_hint": "NEXT_SPLIT_HAND_ACTIVATED",
-            }
-        ),
-        200,
-    )
-
-
-# 16
 @app.route("/api/split_hit", methods=["POST"])
 @login_required
 @with_game_state
@@ -735,15 +638,13 @@ def add_player_from_players(user, game):
 def split_hit(user, game):
     game.hit()
 
-    game_state_for_client = game.serialize_split_hand()
-
     return (
         jsonify(
             {
                 "status": "success",
                 "tokens": user.tokens,
                 "current_tokens": user.tokens,
-                "game_state": game_state_for_client,
+                "game_state": game.serialize_by_context(request.path),
                 "game_state_hint": "HIT_RECIEVED",
             }
         ),
@@ -751,7 +652,7 @@ def split_hit(user, game):
     )
 
 
-# 17
+# 15
 @app.route("/api/split_double_request", methods=["POST"])
 @login_required
 @with_game_state
@@ -760,24 +661,11 @@ def split_double_request(user, game):
     bet_amount_to_double = game.get_bet()
 
     if user.tokens < bet_amount_to_double:
-        return (
-            jsonify(
-                {
-                    "status": "error",
-                    "error": "Insufficient tokens.",
-                    "game_state_hint": "INSUFFICIENT_FUNDS_FOR_DOUBLE",
-                    "required": bet_amount_to_double,
-                    "available": user.tokens,
-                }
-            ),
-            402,
-        )
+        raise ValueError("Insufficient tokens.")
 
     amount_deducted = game.double_request()
     user.tokens -= amount_deducted
     game.hit()
-
-    game_state_for_client = game.serialize_split_hand()
 
     return (
         jsonify(
@@ -785,7 +673,7 @@ def split_double_request(user, game):
                 "status": "success",
                 "message": "Double placed successfully.",
                 "current_tokens": user.tokens,
-                "game_state": game_state_for_client,
+                "game_state": game.serialize_by_context(request.path),
                 "game_state_hint": "DOUBLE_RECIEVED",
             }
         ),
@@ -793,7 +681,7 @@ def split_double_request(user, game):
     )
 
 
-# 18
+# 16
 @app.route("/api/split_stand_and_rewards", methods=["POST"])
 @login_required
 @with_game_state
@@ -801,10 +689,7 @@ def split_double_request(user, game):
 def double_stand_and_rewards(user, game):
     game.stand()
     token_change = game.rewards()
-
     user.tokens += token_change
-
-    game_state_for_client = game.serialize_split_stand_and_rewards()
 
     return (
         jsonify(
@@ -812,7 +697,7 @@ def double_stand_and_rewards(user, game):
                 "status": "success",
                 "message": "Rewards processed and tokens updated.",
                 "current_tokens": user.tokens,
-                "game_state": game_state_for_client,
+                "game_state": game.serialize_by_context(request.path),
                 "game_state_hint": "REWARDS_PROCESSED",
             }
         ),
@@ -820,7 +705,7 @@ def double_stand_and_rewards(user, game):
     )
 
 
-# 19
+# 17
 @app.route("/api/set_restart", methods=["POST"])
 @login_required
 @with_game_state
@@ -830,14 +715,12 @@ def set_restart(user, game):
 
     user.tokens = 1000
 
-    game_state_for_client = game.serialize_for_client_bets()
-
     return (
         jsonify(
             {
                 "status": "success",
                 "current_tokens": user.tokens,
-                "game_state": game_state_for_client,
+                "game_state": game.serialize_by_context(request.path),
                 "game_state_hint": "HIT_RESTART",
             }
         ),
@@ -845,7 +728,7 @@ def set_restart(user, game):
     )
 
 
-# 20
+# 18
 @app.route("/api/force_restart", methods=["POST"])
 @api_error_handler
 def force_restart_by_client_id():
@@ -886,7 +769,7 @@ def force_restart_by_client_id():
             {
                 "status": "success",
                 "current_tokens": user.tokens,
-                "game_state": game.serialize_for_client_bets(),
+                "game_state": game.serialize_by_context(request.path),
                 "game_state_hint": "FORCE_RESTART_SUCCESSFUL",
             }
         ),
@@ -894,7 +777,7 @@ def force_restart_by_client_id():
     )
 
 
-# 21
+# 19
 @app.route("/error_page", methods=["GET"])
 def error_page():
     return render_template("error.html")

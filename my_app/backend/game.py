@@ -518,6 +518,25 @@ class Game:
     def get_is_round_active(self):
         return self.is_round_active
 
+    # Serialization's helpers
+    def serialize_by_context(self, path):
+        p = path or ""
+
+        if "split_stand_and_rewards" in p: return self.serialize_split_stand_and_rewards()
+        if "add_to_players_list_by_stand" in p: return self.serialize_add_to_players_list_by_stand()
+        if "add_player_from_players" in p: return self.serialize_add_player_from_players()
+        if "split" in p: return self.serialize_split_hand()
+
+        if "ins_request" in p: return self.serialize_for_insurance()
+        if "double_request" in p: return self.serialize_double_state()
+        if "rewards" in p: return self.serialize_reward_state()
+
+        if any(x in p for x in ["start_game", "hit"]): return self.serialize_initial_and_hit_state()
+
+        if any(x in p for x in ["bet", "retake_bet", "create_deck", "restart"]): return self.serialize_for_client_bets()
+
+        return self.serialize_for_client_init()
+
     def serialize_for_client_init(self):
         return {"deck_len": self.deck_len_init}
 
