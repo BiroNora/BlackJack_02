@@ -1,15 +1,15 @@
 import type { ErrorResponse, SessionInitResponse } from "../types/game-types";
 import { v4 as uuidv4 } from 'uuid';
+import { isValidUUID } from "../utilities/utils";
 
 export async function initializeSessionAPI(): Promise<SessionInitResponse> {
-  // 1. Lekérjük/generáljuk a kliens egyedi azonosítóját (client_id) a böngésző localStorage-jából.
-  let clientUuid = localStorage.getItem("blackjack_client_uuid");
-  if (!clientUuid) {
-    clientUuid = uuidv4(); // Generálunk egy újat, ha még nincs
-    localStorage.setItem("blackjack_client_uuid", clientUuid); // Elmentjük a böngészőbe
+  let clientUuid = localStorage.getItem("cid");
+
+  if (!isValidUUID(clientUuid)) {
+    clientUuid = uuidv4();
+    localStorage.setItem("cid", clientUuid!);
   }
 
-  // 2. Meghívjuk az API-t a központosított callApiEndpoint-on keresztül
   try {
     const data = await callApiEndpoint<SessionInitResponse>(
       "/api/initialize_session",
@@ -17,8 +17,8 @@ export async function initializeSessionAPI(): Promise<SessionInitResponse> {
       { client_id: clientUuid }
     );
 
-    if (data.client_id !== clientUuid) {
-      localStorage.setItem("blackjack_client_uuid", data.client_id);
+    if (data?.client_id && data.client_id !== clientUuid) {
+      localStorage.setItem("cid", data.client_id);
     }
 
     return data;

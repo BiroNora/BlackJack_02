@@ -101,10 +101,10 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           ...newData,
           currentGameState: newState,
         };
-        console.log(
-          `>>> Állapotváltás: ${prev.currentGameState} -> ${newState}`,
-          updatedState
-        );
+        //console.log(
+        //  `>>> Állapotváltás: ${prev.currentGameState} -> ${newState}`,
+        //  updatedState
+        //);
         return updatedState;
       });
     },
@@ -502,12 +502,12 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       "ERROR",
       "RELOADING",
     ];
-    console.log(`isProcessingRef_TRANSIT_ELOTT: ${isProcessingRef.current}`);
+    //console.log(`isProcessingRef_TRANSIT_ELOTT: ${isProcessingRef.current}`);
     if (autoProcessingStates.includes(gameState.currentGameState)) {
       if (isProcessingRef.current) return; // Ha már fut, kilépünk
       isProcessingRef.current = true; // Ha nem, lezárjuk
     }
-    console.log(`isProcessingRef_TRANSIT_UTAN: ${isProcessingRef.current}`);
+    //console.log(`isProcessingRef_TRANSIT_UTAN: ${isProcessingRef.current}`);
 
     // --- LOADING ÁLLAPOT KEZELÉSE ---
     if (gameState.currentGameState === "LOADING") {
@@ -975,7 +975,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           resetGameVariables();
           timeoutIdRef.current = window.setTimeout(() => {
             if (isMountedRef.current) {
-              transitionToState("RELOADING");
+              transitionToState("RELOADING", gameState);
             }
           }, 5000);
         } catch (e) {
