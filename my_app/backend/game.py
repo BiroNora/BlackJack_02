@@ -327,7 +327,6 @@ class Game:
             for hand_id, is_stated in sorted(self.players_index.items())
             if is_stated is False
         )
-        print("335: ", self.players_index)
         # next() adja vissza a legelső (legkisebb) False állapotú ID-t
         return next(unplayed_id_generator, None)
 

@@ -233,11 +233,12 @@ def initialize_session():
     """
     Inicializálja a felhasználói sessiont a Postgres DB alapján.
     """
-    data = request.get_json()
+    data = request.get_json() or {}
     client_id_from_request = data.get("client_id")
 
-    if not client_id_from_request or client_id_from_request == "undefined":
-        return jsonify({"error": "Missing client_id"}), 400
+    # JAVÍTÁS: Ha üres, null vagy a JS-ből érkező "undefined" string, generálunk egy újat
+    if not client_id_from_request or client_id_from_request == "undefined" or client_id_from_request == "null":
+        client_id_from_request = str(uuid.uuid4())
 
     # 1. Felhasználó keresése (vagy a session-ből, vagy client_id alapján)
     user_id_in_session = session.get("user_id")
@@ -287,6 +288,7 @@ def initialize_session():
             {
                 "status": "success",
                 "message": "User and game session initialized.",
+                "client_id": user.client_id,
                 "tokens": user.tokens,
                 "game_state": game_instance.serialize_by_context(request.path),
                 "game_state_hint": "USER_SESSION_INITIALIZED",
@@ -731,31 +733,12 @@ def set_restart(user, game):
 # 18
 @app.route("/api/force_restart", methods=["POST"])
 @api_error_handler
-def force_restart_by_client_id():
-    """
-    Ez az útvonal kezeli a játék újraindítását a kliensoldali hibák esetén.
-    A client_id alapján azonosítja a felhasználót, és visszaállítja a játékállapotot
-    a tokenek elvesztése nélkül.
-    """
-    data = request.get_json() or {}
-    client_id = data.get("client_id")
-
-    if not client_id:
-        return jsonify({"error": "client_id is required"}), 400
-
-    # Megkeressük a felhasználót a client_id alapján
-    stmt = select(User).filter_by(client_id=client_id)
-    user = db.session.execute(stmt).scalar_one_or_none()
-
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-
-    # === Új session létrehozása a felhasználó számára ===
-    session.clear()  # Töröljük a régi, potenciálisan hibás játék sessiont
+@login_required
+def force_restart_by_client_id(user):
+    session.clear()
     session["user_id"] = user.id
     session.permanent = True
 
-    # A játék egy új, alapértelmezett állapotból indul.
     game = Game()
     game.restart_game()
 

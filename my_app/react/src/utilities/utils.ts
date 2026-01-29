@@ -87,17 +87,6 @@ export function extractGameStateData1(
   }
 }
 
-export const isValidUUID = (uuid: string | null): boolean => {
-  if (!uuid) return false;
-
-  // Kiszűrjük a tipikus JS hibákból eredő stringeket
-  const invalidValues = ["undefined", "null", "[object Object]"];
-  if (invalidValues.includes(uuid)) return false;
-
-  // UUID v4 formátum ellenőrzése (36 karakter)
-  return uuid.length === 36;
-};
-
 export function formatNumber(number: number) {
   return number.toLocaleString("en-US");
 }

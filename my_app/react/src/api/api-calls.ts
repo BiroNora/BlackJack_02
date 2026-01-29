@@ -1,30 +1,27 @@
 import type { ErrorResponse, SessionInitResponse } from "../types/game-types";
 import { v4 as uuidv4 } from 'uuid';
-import { isValidUUID } from "../utilities/utils";
 
 export async function initializeSessionAPI(): Promise<SessionInitResponse> {
-  let clientUuid = localStorage.getItem("cid");
-
-  if (!isValidUUID(clientUuid)) {
-    clientUuid = uuidv4();
-    localStorage.setItem("cid", clientUuid!);
-  }
+  // 1. Megpróbáljuk lekérni a meglévő azonosítót (ha van)
+  const clientUuid = localStorage.getItem("cid") || undefined;
 
   try {
+    // 2. Meghívjuk a végpontot.
+    // Mivel a callApiEndpoint-ben ott a credentials: "include",
+    // a szerver automatikusan megkapja/beállítja a sütiket.
     const data = await callApiEndpoint<SessionInitResponse>(
       "/api/initialize_session",
       "POST",
-      { client_id: clientUuid }
+      { client_id: clientUuid } // Elküldjük, de a szerver dönt, hogy elfogadja-e
     );
 
-    if (data?.client_id && data.client_id !== clientUuid) {
+    // 3. Ha a szerver új/másik ID-t adott vissza, elmentjük emlékeztetőnek
+    if (data?.client_id) {
       localStorage.setItem("cid", data.client_id);
     }
 
     return data;
   } catch (error) {
-    // A catch blokk most már csak a (client_id generálásból eredő) szinkron hibákat
-    // kapja el, az API hibákat a callApiEndpoint dobja tovább.
     console.error("Hiba az inicializálás során:", error);
     throw error;
   }
@@ -139,15 +136,9 @@ export async function setRestart() {
 }
 
 export async function forceRestart() {
-  const clientUuid = localStorage.getItem("blackjack_client_uuid");
-  if (!clientUuid) {
-    throw new Error("No id.");
-  }
-
-  const data = await callApiEndpoint("/api/force_restart", "POST", {
-    client_id: clientUuid,
-  });
-
+  // Már nem kell a localStorage-ból semmi,
+  // mert a callApiEndpoint elküldi a sütit!
+  const data = await callApiEndpoint("/api/force_restart", "POST");
   return data;
 }
 
@@ -166,86 +157,79 @@ type ApiRequestBody = Record<string, unknown> | null | undefined;
 export async function callApiEndpoint<T>(
   endpoint: string,
   method: string = "GET",
-  body: ApiRequestBody = null
+  body: ApiRequestBody = null,
+  isRetry: boolean = false
 ): Promise<T> {
-  // <--- Visszatérési típus: Promise<T>
   try {
-    if (method === "POST") {
-      // Ha a body null vagy undefined, csinálunk egy üres objektumot
-      const effectiveBody = (body ?? {}) as { idempotency_key?: string };
-      effectiveBody.idempotency_key = uuidv4();
-      body = effectiveBody;
-    }
-
     const options: RequestInit = {
       method: method,
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/json"
       },
-      body: method !== "GET" ? JSON.stringify(body) : undefined,
+      credentials: "include", // Sütik küldése a sessionhöz
     };
+
+    if (method === "POST") {
+      const effectiveBody = (body ?? {}) as { idempotency_key?: string };
+      if (!effectiveBody.idempotency_key) {
+        effectiveBody.idempotency_key = uuidv4();
+      }
+      options.body = JSON.stringify(effectiveBody);
+    }
 
     const response = await fetch(endpoint, options);
 
     if (!response.ok) {
-      // Próbáljuk meg kinyerni a hiba részleteit JSON formátumban
+      const status = response.status;
       let errorData: ErrorResponse = {};
+
       try {
         errorData = await response.json();
       } catch {
-        // Ha nem JSON a hiba válasz, akkor egyszerűen csak egy üzenetet használunk
-        errorData = { message: "Ismeretlen API válasz formátum (nem JSON)." };
+        errorData = { message: "Ismeretlen hiba történt a szerveren." };
       }
 
-      const status = response.status;
-      const statusText = response.statusText || "Ismeretlen hiba";
-      const errorMessage =
-        errorData.message || `HTTP hiba! Státusz: ${status} ${statusText}.`;
+      // --- 401 RETRY LOGIKA ---
+      if (status === 401 && !isRetry) {
+        console.warn("Session lejárt, próbálkozás megújítással...");
+        try {
+          await initializeSessionAPI();
 
-      if (!(status === 400 && errorData.error === "No more split hands.")) {
-        // Logolunk piros hibát, ha NEM a "No more split hands." hiba
-        console.error(
-          `API hiba a(z) '${endpoint}' végponton (státusz: ${status}):`,
-          errorData
-        );
+          return await callApiEndpoint<T>(endpoint, method, body, true);
+        } catch (retryError) {
+          console.error("Az automata újra-inicializálás sikertelen.");
+          throw retryError;
+        }
       }
-      // Ha a "No more split hands." hiba, akkor itt nem logolunk SEMMIT a konzolra.
-      // Ezt a hibát majd a useGameStateMachine fogja diszkréten kezelni.
 
-      // Mindenesetre dobjuk a hibát, hogy a hívó fél elkapja és kezelje.
-      const errorToThrow: HttpError = new Error(errorMessage);
+      // Speciális logolás szűrése
+      const isSplitHandError = status === 400 && errorData.error === "No more split hands.";
+      if (!isSplitHandError && status !== 401) {
+        console.error(`API hiba (${status}):`, errorData);
+      }
+
+      // Hiba objektum összeállítása
+      const errorToThrow = new Error(errorData.message || `HTTP hiba: ${status}`) as HttpError;
       errorToThrow.response = {
         status: status,
-        statusText: statusText,
+        statusText: response.statusText,
         data: errorData,
       };
       throw errorToThrow;
     }
 
-    if (response.status === 204) {
-      return {} as T;
-    }
+    if (response.status === 204) return {} as T;
+    return (await response.json()) as T;
 
-    const data = await response.json();
-    return data as T;
   } catch (error: unknown) {
-    // *** FONTOS VÁLTOZTATÁS ITT: Kondicionális logolás a külső catch-ben is. ***
-    // Csak akkor logolunk pirosat, ha valamilyen ismeretlen hiba történik.
-    // Ha a `HttpError` a "No more split hands." esete, akkor itt sem logolunk.
+    // Típusbiztos hibakezelés a catch ágban
+    const httpError = error as HttpError;
+    const isAuthError = httpError.response?.status === 401;
+    const isSplitError = httpError.response?.status === 400 && httpError.response?.data?.error === "No more split hands.";
 
-    const isSpecificSplitHandError =
-      error instanceof Error &&
-      "response" in error &&
-      (error as HttpError).response?.status === 400 &&
-      (error as HttpError).response?.data?.error === "No more split hands.";
-
-    if (!isSpecificSplitHandError) {
-      console.error(
-        `Hálózati vagy feldolgozási hiba a(z) '${endpoint}' végponton:`,
-        error
-      );
+    if (!isAuthError && !isSplitError) {
+      console.error("Váratlan hiba:", error);
     }
-    // Mindig továbbdobja a hibát a hívó félnek!
     throw error;
   }
 }
