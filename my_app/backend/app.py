@@ -298,9 +298,9 @@ def initialize_session():
 
 # 1
 @app.route("/api/bet", methods=["POST"])
+@api_error_handler
 @login_required
 @with_game_state
-@api_error_handler
 def bet(user, game):
     data = request.get_json() or {}
     bet_amount = data.get("bet", 0)
@@ -330,9 +330,9 @@ def bet(user, game):
 
 # 2
 @app.route("/api/retake_bet", methods=["POST"])
+@api_error_handler
 @login_required
 @with_game_state
-@api_error_handler
 def retake_bet(user, game):
     current_bet_list = game.get_bet_list()
     if not current_bet_list:
@@ -356,9 +356,9 @@ def retake_bet(user, game):
 
 # 3
 @app.route("/api/create_deck", methods=["POST"])
+@api_error_handler
 @login_required
 @with_game_state
-@api_error_handler
 def create_deck(user, game):
     game.create_deck()
 
@@ -377,9 +377,9 @@ def create_deck(user, game):
 
 # 4
 @app.route("/api/start_game", methods=["POST"])
+@api_error_handler
 @login_required
 @with_game_state
-@api_error_handler
 def start_game(user, game):
     game.initialize_new_round()
 
@@ -399,9 +399,9 @@ def start_game(user, game):
 
 # 5
 @app.route("/api/ins_request", methods=["POST"])
+@api_error_handler
 @login_required
 @with_game_state
-@api_error_handler
 def ins_request(user, game):
     bet = game.get_bet()
     insurance_amount = math.ceil(bet / 2)
@@ -429,9 +429,9 @@ def ins_request(user, game):
 
 # 6
 @app.route("/api/hit", methods=["POST"])
+@api_error_handler
 @login_required
 @with_game_state
-@api_error_handler
 def hit(user, game):
     game.hit()
 
@@ -451,9 +451,9 @@ def hit(user, game):
 
 # 7
 @app.route("/api/double_request", methods=["POST"])
+@api_error_handler
 @login_required
 @with_game_state
-@api_error_handler
 def double_request(user, game):
     bet_amount_to_double = game.get_bet()
 
@@ -481,9 +481,9 @@ def double_request(user, game):
 
 # 8
 @app.route("/api/rewards", methods=["POST"])
+@api_error_handler
 @login_required
 @with_game_state
-@api_error_handler
 def rewards(user, game):
     token_change = game.rewards()
     user.tokens += token_change
@@ -504,9 +504,9 @@ def rewards(user, game):
 
 # 9
 @app.route("/api/stand_and_rewards", methods=["POST"])
+@api_error_handler
 @login_required
 @with_game_state
-@api_error_handler
 def stand_and_rewards(user, game):
     game.stand()
     token_change = game.rewards()
@@ -529,9 +529,9 @@ def stand_and_rewards(user, game):
 # SPLIT part
 # 10
 @app.route("/api/split_request", methods=["POST"])
+@api_error_handler
 @login_required
 @with_game_state
-@api_error_handler
 def split_request(user, game):
     bet_amount = game.get_bet()
 
@@ -560,9 +560,9 @@ def split_request(user, game):
 
 # 11
 @app.route("/api/add_to_players_list_by_stand", methods=["POST"])
+@api_error_handler
 @login_required
 @with_game_state
-@api_error_handler
 def add_to_players_list_by_stand(user, game):
     game.add_to_players_list_by_stand()
 
@@ -582,9 +582,9 @@ def add_to_players_list_by_stand(user, game):
 
 # 12
 @app.route("/api/add_split_player_to_game", methods=["POST"])
+@api_error_handler
 @login_required
 @with_game_state
-@api_error_handler
 def add_split_player_to_game(user, game):
     if not game.players:
         raise ValueError("No more hands.")
@@ -607,9 +607,9 @@ def add_split_player_to_game(user, game):
 
 # 13
 @app.route("/api/add_player_from_players", methods=["POST"])
+@api_error_handler
 @login_required
 @with_game_state
-@api_error_handler
 def add_player_from_players(user, game):
     if not game.players:
         raise ValueError("No more hands.")
@@ -632,9 +632,9 @@ def add_player_from_players(user, game):
 
 # 14
 @app.route("/api/split_hit", methods=["POST"])
+@api_error_handler
 @login_required
 @with_game_state
-@api_error_handler
 def split_hit(user, game):
     game.hit()
 
@@ -654,9 +654,9 @@ def split_hit(user, game):
 
 # 15
 @app.route("/api/split_double_request", methods=["POST"])
+@api_error_handler
 @login_required
 @with_game_state
-@api_error_handler
 def split_double_request(user, game):
     bet_amount_to_double = game.get_bet()
 
@@ -683,9 +683,9 @@ def split_double_request(user, game):
 
 # 16
 @app.route("/api/split_stand_and_rewards", methods=["POST"])
+@api_error_handler
 @login_required
 @with_game_state
-@api_error_handler
 def double_stand_and_rewards(user, game):
     game.stand()
     token_change = game.rewards()
@@ -707,9 +707,9 @@ def double_stand_and_rewards(user, game):
 
 # 17
 @app.route("/api/set_restart", methods=["POST"])
+@api_error_handler
 @login_required
 @with_game_state
-@api_error_handler
 def set_restart(user, game):
     game.restart_game()
 
