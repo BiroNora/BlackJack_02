@@ -203,7 +203,7 @@ export async function callApiEndpoint<T>(
       }
 
       // Speciális logolás szűrése
-      const isSplitHandError = status === 400 && errorData.error === "No more split hands.";
+      const isSplitHandError = status === 400 && (errorData.error === "No more split hands." || errorData.message === "No more split hands.");
       if (!isSplitHandError && status !== 401) {
         console.error(`API hiba (${status}):`, errorData);
       }

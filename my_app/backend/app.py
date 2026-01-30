@@ -589,7 +589,7 @@ def add_to_players_list_by_stand(user, game):
 @with_game_state
 def add_split_player_to_game(user, game):
     if not game.players:
-        raise ValueError("No more hands.")
+        raise ValueError("No more split hands.")
 
     game.add_split_player_to_game()
 
@@ -614,7 +614,7 @@ def add_split_player_to_game(user, game):
 @with_game_state
 def add_player_from_players(user, game):
     if not game.players:
-        raise ValueError("No more hands.")
+        raise ValueError("No more split hands.")
 
     game.add_player_from_players()
 
