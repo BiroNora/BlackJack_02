@@ -232,7 +232,6 @@ button:disabled {
 .game-action-area-wrapper {
   display: flex;
   align-items: flex-start;
-  //align-items: center; /* Függőlegesen középre igazítja az elemeket */
   justify-content: center;
   width: 100%;
   padding-top: var(--extra-vertical-padding02);
