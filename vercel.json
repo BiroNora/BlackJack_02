@@ -7,19 +7,17 @@
     {
       "src": "my_app/react/package.json",
       "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
+      "config": { "distDir": "dist" }
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "my_app/backend/app.py"
+      "source": "/api/(.*)",
+      "destination": "my_app/backend/app.py"
     },
     {
-      "src": "/(.*)",
-      "dest": "my_app/react/$1"
+      "source": "/(.*)",
+      "destination": "/my_app/react/$1"
     }
   ]
 }
