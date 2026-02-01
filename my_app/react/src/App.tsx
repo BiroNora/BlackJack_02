@@ -39,9 +39,7 @@ function App() {
     preRewardBet,
     preRewardTokens,
     insPlaced,
-    hasHitTurn,
     showInsLost,
-    hitCounter,
     initDeckLen,
     isWFSR,
   } = useGameStateMachine();
@@ -115,7 +113,6 @@ function App() {
                       onSplit={handleSplitRequest}
                       onInsurance={handleInsRequest}
                       insPlaced={insPlaced}
-                      hasHitTurn={hasHitTurn}
                       isWFSR={isWFSR}
                     />
                   </div>
@@ -175,7 +172,6 @@ function App() {
                       onStand={handleSplitStandRequest}
                       onSplit={handleSplitRequest}
                       onDouble={handleSplitDoubleRequest}
-                      hitCounter={hitCounter}
                       isWFSR={isWFSR}
                     />
                   </div>
@@ -211,7 +207,6 @@ function App() {
                   <div className="game-action-area-wrapper">
                     <SplitPlayDoubleDisabledButtons
                       gameState={gameState}
-                      hitCounter={hitCounter}
                     />
                   </div>
                   <BetBank gameState={gameState} />

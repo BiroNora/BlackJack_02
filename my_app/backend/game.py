@@ -21,7 +21,7 @@ class Game:
             "can_split": False,
             "stated": False,
             "bet": 0,
-            "has_hit": False,
+            "has_hit": 0,
         }
         self.dealer_masked: Dict[str, Any] = {
             "hand": [],
@@ -43,7 +43,7 @@ class Game:
             "can_split": False,
             "stated": False,
             "bet": 0,
-            "has_hit": False,
+            "has_hit": 0,
         }
         self.natural_21 = WinnerState.NONE
         self.aces = False
@@ -109,7 +109,7 @@ class Game:
             "can_split": can_split,
             "stated": self.stated,
             "bet": bet,
-            "has_hit": False,
+            "has_hit": 0,
         }
         self.dealer_masked: Dict[str, Any] = {
             "hand": dealer_masked,
@@ -211,7 +211,7 @@ class Game:
             return
         new_card = self.deck.pop(0)
         self.set_player_hand(new_card)
-        self.player["has_hit"] = True
+        self.player["has_hit"] = self.player.get("has_hit", 0) + 1
 
         self.player["sum"] = self.sum(self.player["hand"], True)
 
@@ -309,7 +309,7 @@ class Game:
             "can_split": can_split,
             "stated": self.stated,
             "bet": self.bet,
-            "has_hit": False,
+            "has_hit": 0,
         }
 
         return player
@@ -415,7 +415,7 @@ class Game:
             "can_split": False,
             "stated": False,
             "bet": 0,
-            "has_hit": False,
+            "has_hit": 0,
         }
         self.dealer_masked: Dict[str, Any] = {
             "hand": [],
@@ -437,7 +437,7 @@ class Game:
             "can_split": False,
             "stated": False,
             "bet": 0,
-            "has_hit": False,
+            "has_hit": 0,
         }
         self.aces = False
         self.natural_21 = WinnerState.NONE

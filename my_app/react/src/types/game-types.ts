@@ -43,7 +43,7 @@ export interface PlayerData {
   can_split: boolean;
   stated: boolean;
   bet: number;
-  has_hit: boolean;
+  has_hit: number;
 }
 
 export interface DealerMaskedData {
@@ -114,9 +114,7 @@ export type GameStateMachineHookResult = {
   preRewardBet: number | null;
   preRewardTokens: number | null;
   insPlaced: boolean;
-  hasHitTurn: boolean;
   showInsLost: boolean;
-  hitCounter: number | null;
   initDeckLen: number | null;
   isWFSR: boolean;
 };
