@@ -580,7 +580,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
             const response = extractGameStateData(data);
 
             if (response?.dealer_masked) {
-              const { nat_21 } = response.dealer_masked;
+              const { nat_21 } = response.dealer_masked || {};
 
               if ([1, 2].includes(nat_21)) {
                 savePreActionState();
