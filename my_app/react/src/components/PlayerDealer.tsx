@@ -4,7 +4,6 @@ import "../styles/playerDealer.css";
 
 interface TableProps {
   gameState: GameStateData;
-  isSplitted: boolean;
 }
 
 const PlayerDealer: React.FC<TableProps> = ({ gameState }) => {

@@ -74,8 +74,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
   const [insPlaced, setInsPlaced] = useState(false);
   const [showInsLost, setShowInsLost] = useState(false);
   const [hasHitTurn, setHasHitTurn] = useState(false);
-  const [hasOver21, setHasOver21] = useState(false);
-  const [isSplitted, setIsSplitted] = useState(false);
   const [hitCounter, setHitCounter] = useState<number | null>(null);
   const [initDeckLen, setInitDeckLen] = useState<number | null>(null);
   // isWaitingForServerResponse = isWFSR  (button disabling)
@@ -137,8 +135,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     setInsPlaced(false);
     setShowInsLost(false);
     setHasHitTurn(false);
-    setHasOver21(false);
-    setIsSplitted(false);
     setHitCounter(null);
     setIsWFSR(false);
   }, []);
@@ -253,10 +249,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         if (!isMountedRef.current) return;
         const response = extractGameStateData(data);
         if (response && response.player) {
-          const playerHandValue = response.player.sum;
-          if (playerHandValue >= 21) {
-            setHasOver21(true);
-          }
           setHasHitTurn(true);
           transitionToState("MAIN_TURN", response);
         }
@@ -349,7 +341,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     console.log("Split elindítva, sorompó LEZÁRVA (true)");
     setIsWFSR(true);
     setShowInsLost(false);
-    setIsSplitted(true);
     savePreActionState();
 
     try {
@@ -405,10 +396,8 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           const playerHandValue = response.player.sum;
           if (playerHandValue >= 21) {
             if (newHitCounter === 1) {
-              setHasOver21(true);
               transitionToState("SPLIT_STAND_DOUBLE", response);
             } else {
-              setHasOver21(true);
               transitionToState("SPLIT_STAND", response);
             }
           } else {
@@ -517,7 +506,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         try {
           // 1. Min. töltési idő beállítása
           const minLoadingTimePromise = new Promise((resolve) =>
-            setTimeout(resolve, 7000)
+            setTimeout(resolve, 700)
           );
 
           // 2. Single API hívás, ami mindent visszaad (session, tokenek, game_state)
@@ -585,7 +574,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
                 if (isMountedRef.current) {
                   transitionToState("INIT_GAME", response);
                 }
-              }, 5000);
+              }, 500);
             }
           }
         } catch (e) {
@@ -638,7 +627,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         setIsWFSR(true);
 
         try {
-          if (hasOver21) {
+          if (gameState.player.sum >= 21) {
             if (isProcessingRef.current) return;
             isProcessingRef.current = true;
 
@@ -701,7 +690,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       console.log(`isProcessingRef_1: ${isProcessingRef.current}`);
       setIsWFSR(true);
       setHasHitTurn(false); // See handleSplitStandRequest
-      setHasOver21(false);
       resetHitCounter();
 
       const SplitStand = async () => {
@@ -908,7 +896,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
                 }
               } else {
                 setHasHitTurn(false);
-                setHasOver21(false);
                 timeoutIdRef.current = window.setTimeout(() => {
                   if (isMountedRef.current) {
                     transitionToState("BETTING", {
@@ -1039,7 +1026,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     resetHitCounter,
     resetGameVariables,
     setInitDeckLen,
-    hasOver21,
     handleApiAction,
   ]);
 
@@ -1062,8 +1048,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     preRewardTokens,
     insPlaced,
     hasHitTurn,
-    hasOver21,
-    isSplitted,
     hitCounter,
     showInsLost,
     initDeckLen,

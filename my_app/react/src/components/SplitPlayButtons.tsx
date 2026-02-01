@@ -8,7 +8,6 @@ interface SplitPlayButtonsProps {
   onDouble: () => void;
   onSplit: () => void;
   hitCounter: number | null;
-  hasOver21: boolean;
   isWFSR: boolean;
 }
 
@@ -19,7 +18,6 @@ const SplitPlayButtons: React.FC<SplitPlayButtonsProps> = ({
   onDouble,
   onSplit,
   hitCounter,
-  hasOver21,
   isWFSR,
 }) => {
   const { tokens, bet, player, players } = gameState;
@@ -27,6 +25,7 @@ const SplitPlayButtons: React.FC<SplitPlayButtonsProps> = ({
   const canSplit =
     player.hand.length == 2 && player.can_split && tokens >= bet && hitCounter === null;
   const playersLength = Object.keys(players).length < 3 ? true : false;
+  const hasOver21 = player.sum >= 21;
   const [showButtons, setShowButtons] = useState(false);
   const timeoutIdRef = useRef<number | null>(null);
 

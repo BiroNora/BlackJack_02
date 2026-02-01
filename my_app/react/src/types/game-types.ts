@@ -114,9 +114,7 @@ export type GameStateMachineHookResult = {
   preRewardTokens: number | null;
   insPlaced: boolean;
   hasHitTurn: boolean;
-  hasOver21: boolean;
   showInsLost: boolean;
-  isSplitted: boolean;
   hitCounter: number | null;
   initDeckLen: number | null;
   isWFSR: boolean;

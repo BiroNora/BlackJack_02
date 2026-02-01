@@ -41,8 +41,6 @@ function App() {
     insPlaced,
     hasHitTurn,
     showInsLost,
-    hasOver21,
-    isSplitted,
     hitCounter,
     initDeckLen,
     isWFSR,
@@ -118,7 +116,6 @@ function App() {
                       onInsurance={handleInsRequest}
                       insPlaced={insPlaced}
                       hasHitTurn={hasHitTurn}
-                      hasOver21={hasOver21}
                       isWFSR={isWFSR}
                     />
                   </div>
@@ -132,7 +129,6 @@ function App() {
                   <div className="player-dealer-area-wrapper">
                     <PlayerDealer
                       gameState={gameState}
-                      isSplitted={isSplitted}
                     />
                   </div>
                   <div className="game-action-area-wrapper">
@@ -180,7 +176,6 @@ function App() {
                       onSplit={handleSplitRequest}
                       onDouble={handleSplitDoubleRequest}
                       hitCounter={hitCounter}
-                      hasOver21={hasOver21}
                       isWFSR={isWFSR}
                     />
                   </div>
@@ -248,7 +243,6 @@ function App() {
                   <div className="player-dealer-area-wrapper">
                     <PlayerDealer
                       gameState={gameState}
-                      isSplitted={isSplitted}
                     />
                   </div>
                   <div className="game-action-area-wrapper">
@@ -271,7 +265,6 @@ function App() {
                   <div className="player-dealer-area-wrapper">
                     <PlayerDealer
                       gameState={gameState}
-                      isSplitted={isSplitted}
                     />
                   </div>
                   <div className="game-action-area-wrapper">
