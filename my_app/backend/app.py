@@ -279,9 +279,13 @@ def initialize_session():
 
     # 4. Játékállapot előkészítése a kliensnek
     # A Postgres JSONB mezőjéből olvassuk ki
-    game_instance = (
-        Game.deserialize(user.current_game_state) if user.current_game_state else Game()
-    )
+    if not user.current_game_state:
+        game_instance = Game()
+        # AZONNAL MENTJÜK, hogy a következő, dekorált kérés már megtalálja!
+        user.current_game_state = game_instance.serialize()
+        db.session.commit()
+    else:
+        game_instance = Game.deserialize(user.current_game_state)
 
     return (
         jsonify(

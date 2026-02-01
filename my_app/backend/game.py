@@ -21,6 +21,7 @@ class Game:
             "can_split": False,
             "stated": False,
             "bet": 0,
+            "has_hit": False,
         }
         self.dealer_masked: Dict[str, Any] = {
             "hand": [],
@@ -42,6 +43,7 @@ class Game:
             "can_split": False,
             "stated": False,
             "bet": 0,
+            "has_hit": False,
         }
         self.natural_21 = WinnerState.NONE
         self.aces = False
@@ -53,7 +55,8 @@ class Game:
         self.split_req: int = 0
         self.unmasked_sum_sent = False
         self.suits = ["♥", "♦", "♣", "♠"]
-        self.ranks = ["A", "K", "Q", "J", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+        # self.ranks = ["A", "K", "Q", "J", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+        self.ranks = ["A", "K", "Q", "J", "9", "10"]
         self.deck = []
         self.deck_len_init = 104
         self.bet: int = 0
@@ -63,11 +66,12 @@ class Game:
     def initialize_new_round(self):
         self.clear_up()
 
-        card1 = self.deck.pop(0)
+        #card1 = self.deck.pop(0)
         card2 = self.deck.pop(0)
-        card3 = self.deck.pop(0)
+        #card3 = self.deck.pop(0)
         card4 = self.deck.pop(0)
-
+        card1 = "♥K"
+        card3 = "♣Q"
         player_hand = [card1, card3]
         dealer_hand = [card2, card4]
         dealer_masked = [" ✪ ", card4]
@@ -105,6 +109,7 @@ class Game:
             "can_split": can_split,
             "stated": self.stated,
             "bet": bet,
+            "has_hit": False,
         }
         self.dealer_masked: Dict[str, Any] = {
             "hand": dealer_masked,
@@ -206,6 +211,7 @@ class Game:
             return
         new_card = self.deck.pop(0)
         self.set_player_hand(new_card)
+        self.player["has_hit"] = True
 
         self.player["sum"] = self.sum(self.player["hand"], True)
 
@@ -303,6 +309,7 @@ class Game:
             "can_split": can_split,
             "stated": self.stated,
             "bet": self.bet,
+            "has_hit": False,
         }
 
         return player
@@ -408,6 +415,7 @@ class Game:
             "can_split": False,
             "stated": False,
             "bet": 0,
+            "has_hit": False,
         }
         self.dealer_masked: Dict[str, Any] = {
             "hand": [],
@@ -429,6 +437,7 @@ class Game:
             "can_split": False,
             "stated": False,
             "bet": 0,
+            "has_hit": False,
         }
         self.aces = False
         self.natural_21 = WinnerState.NONE
@@ -450,6 +459,7 @@ class Game:
     def can_split(self, hand):
         ranks = self.hand_to_ranks(hand)
         tens = ["K", "Q", "J", "0"]
+
         return len(ranks) == 2 and (
             (ranks[0] == ranks[1]) or (ranks[0] in tens and ranks[1] in tens)
         )

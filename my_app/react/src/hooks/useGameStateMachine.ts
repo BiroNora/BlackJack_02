@@ -40,6 +40,7 @@ const initialGameState: GameStateData = {
     can_split: false,
     stated: false,
     bet: 0,
+    has_hit: false,
   },
   dealer_masked: {
     hand: [],

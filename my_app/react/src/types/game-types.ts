@@ -43,6 +43,7 @@ export interface PlayerData {
   can_split: boolean;
   stated: boolean;
   bet: number;
+  has_hit: boolean;
 }
 
 export interface DealerMaskedData {
