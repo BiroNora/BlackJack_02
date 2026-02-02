@@ -89,3 +89,13 @@
 .enjoy {
   font-size: clamp(1.4rem, 1.2vw, 2.2rem);
 }
+
+.status-message-box {
+  width: 90%;          /* Ne érjen ki teljesen a széléig */
+  max-width: 600px;    /* Olvasható szélesség asztali gépen is */
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;           /* Távolság a két mondat között */
+  padding-top: 2rem;
+  padding-right: 1.5rem;
+}
