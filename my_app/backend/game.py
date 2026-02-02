@@ -66,9 +66,9 @@ class Game:
     def initialize_new_round(self):
         self.clear_up()
 
-        #card1 = self.deck.pop(0)
+        # card1 = self.deck.pop(0)
         card2 = self.deck.pop(0)
-        #card3 = self.deck.pop(0)
+        # card3 = self.deck.pop(0)
         card4 = self.deck.pop(0)
         card1 = "♥K"
         card3 = "♣Q"
@@ -244,6 +244,7 @@ class Game:
             reward_amount = bet
 
         self.set_bet_to_null()
+        self.set_bet_list_to_null()
         self.is_round_active = False
 
         return reward_amount
@@ -262,6 +263,7 @@ class Game:
 
         if self.dealer_unmasked["natural_21"] == 3:
             self.set_bet_to_null()
+            self.set_bet_list_to_null()
             self.is_round_active = False
             self.player["hand_state"] = self.hand_state(self.player["sum"], True)
 
@@ -300,7 +302,9 @@ class Game:
 
         player_sum = self.sum(hand, True)
         can_split = False if self.aces else self.can_split(hand)
-        player_state = self.hand_state(player_sum, True) if is_first else HandState.UNDER_21
+        player_state = (
+            self.hand_state(player_sum, True) if is_first else HandState.UNDER_21
+        )
         player = {
             "id": hand_id,
             "hand": hand,
@@ -447,7 +451,6 @@ class Game:
         self.players_index = {}
         self.split_req = 0
         self.unmasked_sum_sent = False
-        self.set_bet_list_to_null()
         self.is_round_active = False
 
     def restart_game(self):
@@ -531,23 +534,34 @@ class Game:
     def serialize_by_context(self, path):
         p = path or ""
 
-        if "split_stand_and_rewards" in p: return self.serialize_split_stand_and_rewards()
-        if "add_to_players_list_by_stand" in p: return self.serialize_add_to_players_list_by_stand()
-        if "add_player_from_players" in p: return self.serialize_add_player_from_players()
-        if "split" in p: return self.serialize_split_hand()
+        if "recover_full_state" in p:
+            if self.players or self.split_req > 0:
+                return self.serialize_split_hand()
+            return self.serialize_initial_and_hit_state()
 
-        if "ins_request" in p: return self.serialize_for_insurance()
-        if "double_request" in p: return self.serialize_double_state()
-        if "rewards" in p: return self.serialize_reward_state()
+        if "split_stand_and_rewards" in p:
+            return self.serialize_split_stand_and_rewards()
+        if "add_to_players_list_by_stand" in p:
+            return self.serialize_add_to_players_list_by_stand()
+        if "add_player_from_players" in p:
+            return self.serialize_add_player_from_players()
+        if "split" in p:
+            return self.serialize_split_hand()
 
-        if any(x in p for x in ["start_game", "hit"]): return self.serialize_initial_and_hit_state()
+        if "ins_request" in p:
+            return self.serialize_for_insurance()
+        if "double_request" in p:
+            return self.serialize_double_state()
+        if "rewards" in p:
+            return self.serialize_reward_state()
 
-        if any(x in p for x in ["bet", "retake_bet", "create_deck", "restart"]): return self.serialize_for_client_bets()
+        if any(x in p for x in ["start_game", "hit"]):
+            return self.serialize_initial_and_hit_state()
+
+        if any(x in p for x in ["bet", "retake_bet", "create_deck", "restart"]):
+            return self.serialize_for_client_bets()
 
         return self.serialize_for_client_init()
-
-    def serialize_for_client_init(self):
-        return {"deck_len": self.deck_len_init}
 
     def serialize_for_client_bets(self):
         return {
@@ -606,6 +620,15 @@ class Game:
         all_hands = list(self.players.values())
 
         return sorted(all_hands, key=Game._get_sort_key_combined)
+
+    def serialize_for_client_init(self):
+        sorted_players_list = self._get_sorted_hands()
+
+        return {
+            "deck_len": self.deck_len_init,
+            "is_round_active": self.is_round_active,
+            "has_split": bool(sorted_players_list),
+        }
 
     def serialize_split_hand(self):
         sorted_players_list = self._get_sorted_hands()

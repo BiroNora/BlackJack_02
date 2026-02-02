@@ -237,7 +237,11 @@ def initialize_session():
     client_id_from_request = data.get("client_id")
 
     # JAVÍTÁS: Ha üres, null vagy a JS-ből érkező "undefined" string, generálunk egy újat
-    if not client_id_from_request or client_id_from_request == "undefined" or client_id_from_request == "null":
+    if (
+        not client_id_from_request
+        or client_id_from_request == "undefined"
+        or client_id_from_request == "null"
+    ):
         client_id_from_request = str(uuid.uuid4())
 
     # 1. Felhasználó keresése (vagy a session-ből, vagy client_id alapján)
@@ -765,6 +769,26 @@ def force_restart_by_client_id(user):
 
 
 # 19
+@app.route("/api/recover_full_state", methods=["POST"])
+@api_error_handler
+@login_required
+@with_game_state
+def recover_full_state(user, game):
+    return (
+        jsonify(
+            {
+                "status": "success",
+                "message": "Game state recovered.",
+                "current_tokens": user.tokens,
+                "game_state": game.serialize_by_context(request.path),
+                "game_state_hint": "RECOVERY_DATA_LOADED",
+            }
+        ),
+        200,
+    )
+
+
+# 20
 @app.route("/error_page", methods=["GET"])
 def error_page():
     return render_template("error.html")
