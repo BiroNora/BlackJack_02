@@ -21,10 +21,13 @@ import Betting from "./components/Betting";
 import { AnimatePresence, motion } from "motion/react";
 import SplitPlayerDealerMasked from "./components/SplitPlayerDealerMasked";
 import { Reloading } from "./components/Reloading";
+import RecoveryDec from "./components/RecoveryDec";
 
 function App() {
   const {
     gameState,
+    handleOnContinue,
+    handleOnAbandon,
     handlePlaceBet,
     handleRetakeBet,
     handleStartGame,
@@ -68,6 +71,14 @@ function App() {
                 <div>
                   <PageWrapper>
                     <Loading />
+                  </PageWrapper>
+                </div>
+              );
+            case "RECOVERY_DECISION":
+              return (
+                <div>
+                  <PageWrapper>
+                    <RecoveryDec gameState={gameState} onContinue={handleOnContinue} onAbandon={handleOnAbandon} isWFSR={isWFSR}/>
                   </PageWrapper>
                 </div>
               );

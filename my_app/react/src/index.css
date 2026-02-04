@@ -92,7 +92,7 @@
   }
 
   .game-action-area-wrapper {
-    min-height: 4.0rem;
+    min-height: 4rem;
   }
 }
 
@@ -218,6 +218,25 @@ button:disabled {
   font-size: clamp(1.2rem, 1.3vw, 1.4rem);
 }
 
+#cont-button,
+#new-button {
+  /* Alapállapot: legyen egy átlátszó keret, hogy ne ugráljon a gomb hovernél */
+  border: 2px solid transparent;
+  transition: border 0.2s ease-in-out; /* Lágyabb átmenet */
+  /* ... a többi stílusod (háttér, szín, stb.) ... */
+}
+
+#cont-button:hover,
+#cont-button:focus,
+#new-button:hover,
+#new-button:focus {
+  background-color: rgb(53, 154, 74) !important;
+  color: white;
+  border-color: rgb(166, 180, 199) !important;
+  border: 2px solid #d41515 !important;
+  outline: none;
+}
+
 .player-dealer-area-wrapper {
   display: flex;
   align-items: flex-start; /* Függőlegesen középre igazítja az elemeket */
@@ -327,7 +346,8 @@ button:disabled {
 }
 
 .error-container-centered h1 {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif; /* A betűtípusod */
+  font-family:
+    system-ui, Avenir, Helvetica, Arial, sans-serif; /* A betűtípusod */
   font-size: clamp(1.5rem, 2.3vw, 3rem);
   font-weight: 500;
   color: #504343ff;

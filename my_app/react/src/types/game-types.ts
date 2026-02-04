@@ -1,5 +1,6 @@
 export type GameState =
   | "LOADING"
+  | "RECOVERY_DECISION"
   | "SHUFFLING"
   | "BETTING"
   | "INIT_GAME"
@@ -33,6 +34,7 @@ export interface GameStateData {
   bet: number;
   bet_list: number[];
   is_round_active: boolean;
+  has_split: boolean;
 }
 
 export interface PlayerData {
@@ -63,6 +65,8 @@ export interface DealerUnmaskedData {
 export type GameStateForClient = {
   // A deck_len az egyetlen mező, amit a serialize_for_client_init(self) visszaküld.
   deck_len: number;
+  is_round_active: boolean;
+  has_split: boolean;
 };
 
 export type SessionInitResponse = {
@@ -99,6 +103,8 @@ export type GameStateMachineHookResult = {
     newState: GameState,
     newData?: Partial<GameStateData>
   ) => void;
+  handleOnContinue: () => Promise<void>;
+  handleOnAbandon: () => Promise<void>;
   handlePlaceBet: (amount: number) => Promise<void>;
   //handleDeal: () => Promise<void>; // Hozzáadva a visszatérési típushoz
   handleRetakeBet: () => Promise<void>;

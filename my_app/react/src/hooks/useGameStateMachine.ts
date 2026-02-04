@@ -64,6 +64,7 @@ const initialGameState: GameStateData = {
   bet: 0,
   bet_list: [],
   is_round_active: false,
+  has_split: false,
 };
 
 // A hook visszatérési típusa most inline van deklarálva, nincs külön 'type' definíció.
@@ -162,6 +163,52 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     },
     [transitionToState],
   );
+
+  const handleOnContinue = useCallback(async () => {
+    setIsWFSR(true);
+
+    try {
+      const data = await handleApiAction(handleHit);
+      if (data) {
+        if (!isMountedRef.current) return;
+        const response = extractGameStateData(data);
+        if (response?.player) {
+          transitionToState("MAIN_TURN", response);
+        }
+      }
+    } catch {
+      if (isMountedRef.current) {
+        transitionToState("ERROR");
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsWFSR(false);
+      }
+    }
+  }, [handleApiAction, transitionToState]);
+
+  const handleOnAbandon = useCallback(async () => {
+    setIsWFSR(true);
+
+    try {
+      const data = await handleApiAction(handleHit);
+      if (data) {
+        if (!isMountedRef.current) return;
+        const response = extractGameStateData(data);
+        if (response?.player) {
+          transitionToState("MAIN_TURN", response);
+        }
+      }
+    } catch {
+      if (isMountedRef.current) {
+        transitionToState("ERROR");
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsWFSR(false);
+      }
+    }
+  }, [handleApiAction, transitionToState]);
 
   const handlePlaceBet = useCallback(
     async (amount: number) => {
@@ -458,6 +505,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
     const autoProcessingStates = [
       "LOADING",
+      "RECOVERY_DECISION",
       "SHUFFLING",
       "INIT_GAME",
       "MAIN_STAND",
@@ -488,7 +536,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         try {
           // 1. Min. töltési idő beállítása
           const minLoadingTimePromise = new Promise((resolve) =>
-            setTimeout(resolve, 7000),
+            setTimeout(resolve, 700),
           );
 
           // 2. Single API hívás, ami mindent visszaad (session, tokenek, game_state)
@@ -513,6 +561,8 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           const responseData = initData as SessionInitResponse;
           const userTokens = responseData.tokens;
           const deckLength = responseData.game_state.deck_len;
+          const has_active = responseData.game_state.is_round_active;
+          const has_split = responseData.game_state.has_split;
 
           if (isMountedRef.current) {
             setInitDeckLen(deckLength);
@@ -524,10 +574,24 @@ export function useGameStateMachine(): GameStateMachineHookResult {
             }
           } else {
             if (isMountedRef.current) {
-              transitionToState("BETTING", {
-                tokens: userTokens,
-                deck_len: deckLength,
-              });
+              if (has_active) {
+                transitionToState("RECOVERY_DECISION", {
+                  tokens: userTokens,
+                  deck_len: deckLength,
+                  has_split: has_split,
+                });
+              }
+              else {
+                transitionToState("RECOVERY_DECISION", {
+                  tokens: userTokens,
+                  deck_len: deckLength,
+                  has_split: has_split,
+                });
+                /* transitionToState("BETTING", {
+                  tokens: userTokens,
+                  deck_len: deckLength,
+                }); */
+              }
             }
           }
         } catch (error) {
@@ -983,6 +1047,8 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     gameState,
     currentGameState: gameState.currentGameState,
     transitionToState,
+    handleOnContinue,
+    handleOnAbandon,
     handlePlaceBet,
     handleRetakeBet,
     handleStartGame,
