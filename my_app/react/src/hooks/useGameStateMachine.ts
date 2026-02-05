@@ -5,6 +5,7 @@ import {
   takeBackDeal,
   getShuffling,
   clearGameState,
+  recoverGameState,
   startGame,
   handleHit,
   handleRewards,
@@ -65,7 +66,7 @@ const initialGameState: GameStateData = {
   bet: 0,
   bet_list: [],
   is_round_active: false,
-  has_split: false,
+  has_rewards: false,
 };
 
 // A hook visszatérési típusa most inline van deklarálva, nincs külön 'type' definíció.
@@ -169,12 +170,20 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     setIsWFSR(true);
 
     try {
-      const data = await handleApiAction(handleHit);
+      const data = await handleApiAction(recoverGameState);
       if (data) {
         if (!isMountedRef.current) return;
+
         const response = extractGameStateData(data);
-        if (response?.player) {
+        const hasSplit = response?.players && Object.keys(response.players).length > 0;
+        const isActive = response?.is_round_active;
+
+        if (hasSplit) {
+          transitionToState(response.has_rewards ? "SPLIT_FINISH" : "SPLIT_TURN", response);
+        } else if (isActive) {
           transitionToState("MAIN_TURN", response);
+        } else {
+          transitionToState("BETTING", response);
         }
       }
     } catch {
@@ -579,14 +588,10 @@ export function useGameStateMachine(): GameStateMachineHookResult {
                 });
               }
               else {
-                transitionToState("RECOVERY_DECISION", {
+                transitionToState("BETTING", {
                   tokens: userTokens,
                   deck_len: deckLength,
                 });
-                /* transitionToState("BETTING", {
-                  tokens: userTokens,
-                  deck_len: deckLength,
-                }); */
               }
             }
           }

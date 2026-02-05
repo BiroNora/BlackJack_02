@@ -4,7 +4,6 @@ import logging
 import math
 from functools import wraps
 from dotenv import load_dotenv
-from sqlalchemy import select
 from flask import Flask, jsonify, render_template, request, session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta, timezone
@@ -12,7 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 
-from my_app.backend.game import TOTAL_INITIAL_CARDS, Game
+from my_app.backend.game import Game
 
 load_dotenv()
 

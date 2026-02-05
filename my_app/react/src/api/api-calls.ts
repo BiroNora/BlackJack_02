@@ -33,6 +33,12 @@ export async function clearGameState() {
   return data;
 }
 
+export async function recoverGameState() {
+  const data = await callApiEndpoint("/api/recover_game_state", "POST");
+
+  return data;
+}
+
 export async function setBet(betAmount: number) {
   const data = await callApiEndpoint("/api/bet", "POST", { bet: betAmount });
 

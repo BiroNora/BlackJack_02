@@ -34,7 +34,7 @@ export interface GameStateData {
   bet: number;
   bet_list: number[];
   is_round_active: boolean;
-  has_split: boolean;
+  has_rewards: boolean;
 }
 
 export interface PlayerData {

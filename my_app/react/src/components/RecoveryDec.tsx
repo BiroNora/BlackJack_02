@@ -42,7 +42,7 @@ const RecoveryDec: React.FC<RecoveryDecProps> = ({
             {isWFSR ? "Loading..." : "Continue"}
           </button>
           <button id="new-button" onClick={onStartNew} disabled={isWFSR}>
-            {isWFSR ? "Loading..." : "Start New"}
+            {isWFSR ? "Loading..." : "New Game"}
           </button>
         </div>
       </div>

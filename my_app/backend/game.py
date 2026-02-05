@@ -65,6 +65,7 @@ class Game:
         self.bet: int = 0
         self.bet_list = []
         self.is_round_active = False
+        self.has_rewards = False
 
     def initialize_new_round(self):
         self.clear_up()
@@ -248,7 +249,8 @@ class Game:
 
         self.set_bet_to_null()
         self.set_bet_list_to_null()
-        self.is_round_active = False
+        self.has_rewards = True
+        self.is_round_active = bool(self.players)
 
         return reward_amount
 
@@ -455,6 +457,7 @@ class Game:
         self.split_req = 0
         self.unmasked_sum_sent = False
         self.is_round_active = False
+        self.has_rewards = False
 
     def restart_game(self):
         self.__init__()
@@ -571,7 +574,7 @@ class Game:
 
     def serialize_for_client_init(self):
         return {
-            "deck_len": self.deck_len_init,
+            "deck_len": TOTAL_INITIAL_CARDS if len(self.deck) == 0 else len(self.deck),
             "is_round_active": self.is_round_active,
         }
 
@@ -645,6 +648,7 @@ class Game:
             "deck_len": self.get_deck_len(),
             "bet": self.bet,
             "is_round_active": self.is_round_active,
+            "has_rewards": self.has_rewards,
         }
 
     def serialize_add_to_players_list_by_stand(self):
@@ -721,6 +725,7 @@ class Game:
             "bet": self.bet,
             "bet_list": self.bet_list,
             "is_round_active": self.is_round_active,
+            "has_rewards": self.has_rewards,
         }
 
     @classmethod
@@ -743,4 +748,5 @@ class Game:
         game.bet = data["bet"]
         game.bet_list = data["bet_list"]
         game.is_round_active = data.get("is_round_active", False)
+        game.has_rewards = data.get("has_rewards", False)
         return game
