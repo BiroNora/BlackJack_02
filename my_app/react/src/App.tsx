@@ -27,7 +27,7 @@ function App() {
   const {
     gameState,
     handleOnContinue,
-    handleOnAbandon,
+    handleOnStartNew,
     handlePlaceBet,
     handleRetakeBet,
     handleStartGame,
@@ -78,7 +78,12 @@ function App() {
               return (
                 <div>
                   <PageWrapper>
-                    <RecoveryDec gameState={gameState} onContinue={handleOnContinue} onAbandon={handleOnAbandon} isWFSR={isWFSR}/>
+                    <RecoveryDec
+                      gameState={gameState}
+                      onContinue={handleOnContinue}
+                      onStartNew={handleOnStartNew}
+                      isWFSR={isWFSR}
+                    />
                   </PageWrapper>
                 </div>
               );
@@ -135,9 +140,7 @@ function App() {
                 <div>
                   <Cards gameState={gameState} initDeckLen={initDeckLen} />
                   <div className="player-dealer-area-wrapper">
-                    <PlayerDealer
-                      gameState={gameState}
-                    />
+                    <PlayerDealer gameState={gameState} />
                   </div>
                   <div className="game-action-area-wrapper">
                     <Winner gameState={gameState} />
@@ -216,9 +219,7 @@ function App() {
                     <SplitPlayerDealerMasked gameState={gameState} />
                   </div>
                   <div className="game-action-area-wrapper">
-                    <SplitPlayDoubleDisabledButtons
-                      gameState={gameState}
-                    />
+                    <SplitPlayDoubleDisabledButtons gameState={gameState} />
                   </div>
                   <BetBank gameState={gameState} />
                   <div className="players-area-wrapper">
@@ -247,9 +248,7 @@ function App() {
                 <div>
                   <Cards gameState={gameState} initDeckLen={initDeckLen} />
                   <div className="player-dealer-area-wrapper">
-                    <PlayerDealer
-                      gameState={gameState}
-                    />
+                    <PlayerDealer gameState={gameState} />
                   </div>
                   <div className="game-action-area-wrapper">
                     {/* <SplitWinner gameState={gameState} /> */}
@@ -269,9 +268,7 @@ function App() {
                 <div>
                   <Cards gameState={gameState} initDeckLen={initDeckLen} />
                   <div className="player-dealer-area-wrapper">
-                    <PlayerDealer
-                      gameState={gameState}
-                    />
+                    <PlayerDealer gameState={gameState} />
                   </div>
                   <div className="game-action-area-wrapper">
                     <SplitWinner gameState={gameState} />

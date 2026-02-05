@@ -4,6 +4,7 @@ import {
   setBet,
   takeBackDeal,
   getShuffling,
+  clearGameState,
   startGame,
   handleHit,
   handleRewards,
@@ -187,17 +188,15 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     }
   }, [handleApiAction, transitionToState]);
 
-  const handleOnAbandon = useCallback(async () => {
+  const handleOnStartNew = useCallback(async () => {
     setIsWFSR(true);
 
     try {
-      const data = await handleApiAction(handleHit);
+      const data = await handleApiAction(clearGameState);
       if (data) {
         if (!isMountedRef.current) return;
         const response = extractGameStateData(data);
-        if (response?.player) {
-          transitionToState("MAIN_TURN", response);
-        }
+        transitionToState("BETTING", response);
       }
     } catch {
       if (isMountedRef.current) {
@@ -562,7 +561,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           const userTokens = responseData.tokens;
           const deckLength = responseData.game_state.deck_len;
           const has_active = responseData.game_state.is_round_active;
-          const has_split = responseData.game_state.has_split;
 
           if (isMountedRef.current) {
             setInitDeckLen(deckLength);
@@ -578,14 +576,12 @@ export function useGameStateMachine(): GameStateMachineHookResult {
                 transitionToState("RECOVERY_DECISION", {
                   tokens: userTokens,
                   deck_len: deckLength,
-                  has_split: has_split,
                 });
               }
               else {
                 transitionToState("RECOVERY_DECISION", {
                   tokens: userTokens,
                   deck_len: deckLength,
-                  has_split: has_split,
                 });
                 /* transitionToState("BETTING", {
                   tokens: userTokens,
@@ -1048,7 +1044,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     currentGameState: gameState.currentGameState,
     transitionToState,
     handleOnContinue,
-    handleOnAbandon,
+    handleOnStartNew,
     handlePlaceBet,
     handleRetakeBet,
     handleStartGame,

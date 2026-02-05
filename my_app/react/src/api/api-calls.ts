@@ -27,6 +27,12 @@ export async function initializeSessionAPI(): Promise<SessionInitResponse> {
   }
 }
 
+export async function clearGameState() {
+  const data = await callApiEndpoint("/api/clear_game_state", "POST");
+
+  return data;
+}
+
 export async function setBet(betAmount: number) {
   const data = await callApiEndpoint("/api/bet", "POST", { bet: betAmount });
 

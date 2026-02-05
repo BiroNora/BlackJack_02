@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 
-from my_app.backend.game import Game
+from my_app.backend.game import TOTAL_INITIAL_CARDS, Game
 
 load_dotenv()
 
@@ -789,6 +789,31 @@ def recover_full_state(user, game):
 
 
 # 20
+@app.route("/api/clear_game_state", methods=["POST"])
+@api_error_handler
+@login_required
+@with_game_state
+def clear_game_state(user, game):
+    game.clear_game_state()
+
+    # Idempotencia törlése, hogy az új kör tiszta lappal induljon
+    user.idempotency_key = None
+
+    return (
+        jsonify(
+            {
+                "status": "success",
+                "message": "Game state cleared.",
+                "current_tokens": user.tokens,
+                "game_state": game.serialize_by_context(request.path),
+                "game_state_hint": "GAME STATE CLEARED",
+            }
+        ),
+        200,
+    )
+
+
+# 21
 @app.route("/error_page", methods=["GET"])
 def error_page():
     return render_template("error.html")

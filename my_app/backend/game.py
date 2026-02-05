@@ -9,6 +9,9 @@ from my_app.backend.hand_state import HandState
 from my_app.backend.winner_state import WinnerState
 
 NONE = 0
+NUM_DECKS = 2
+CARDS_IN_DECK = 52
+TOTAL_INITIAL_CARDS = NUM_DECKS * CARDS_IN_DECK # 104
 
 
 class Game:
@@ -58,7 +61,7 @@ class Game:
         # self.ranks = ["A", "K", "Q", "J", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
         self.ranks = ["A", "K", "Q", "J", "9", "10"]
         self.deck = []
-        self.deck_len_init = 104
+        self.deck_len_init = TOTAL_INITIAL_CARDS
         self.bet: int = 0
         self.bet_list = []
         self.is_round_active = False
@@ -470,6 +473,9 @@ class Game:
     def load_state_from_data(self, data):
         self.is_round_active = data.get("is_round_active", False)
 
+    def clear_game_state(self):
+        self.__init__()
+
     # getters, setters
     def set_player_hand(self, card):
         self.player["hand"].append(card)
@@ -563,6 +569,12 @@ class Game:
 
         return self.serialize_for_client_init()
 
+    def serialize_for_client_init(self):
+        return {
+            "deck_len": self.deck_len_init,
+            "is_round_active": self.is_round_active,
+        }
+
     def serialize_for_client_bets(self):
         return {
             "bet": self.bet,
@@ -620,15 +632,6 @@ class Game:
         all_hands = list(self.players.values())
 
         return sorted(all_hands, key=Game._get_sort_key_combined)
-
-    def serialize_for_client_init(self):
-        sorted_players_list = self._get_sorted_hands()
-
-        return {
-            "deck_len": self.deck_len_init,
-            "is_round_active": self.is_round_active,
-            "has_split": bool(sorted_players_list),
-        }
 
     def serialize_split_hand(self):
         sorted_players_list = self._get_sorted_hands()

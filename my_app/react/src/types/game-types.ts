@@ -63,10 +63,8 @@ export interface DealerUnmaskedData {
 }
 
 export type GameStateForClient = {
-  // A deck_len az egyetlen mező, amit a serialize_for_client_init(self) visszaküld.
   deck_len: number;
   is_round_active: boolean;
-  has_split: boolean;
 };
 
 export type SessionInitResponse = {
@@ -75,18 +73,8 @@ export type SessionInitResponse = {
   user_id: string;
   client_id: string;
   tokens: number;
-  game_state: GameStateForClient; // deck_len
+  game_state: GameStateForClient;
   game_state_hint: "USER_SESSION_INITIALIZED";
-};
-
-export type TokensResponse = {
-  user_tokens: number;
-  message: string;
-};
-
-export type DeckLenResponse = {
-  deck_len: number;
-  message: string;
 };
 
 export type ErrorResponse = {
@@ -104,7 +92,7 @@ export type GameStateMachineHookResult = {
     newData?: Partial<GameStateData>
   ) => void;
   handleOnContinue: () => Promise<void>;
-  handleOnAbandon: () => Promise<void>;
+  handleOnStartNew: () => Promise<void>;
   handlePlaceBet: (amount: number) => Promise<void>;
   //handleDeal: () => Promise<void>; // Hozzáadva a visszatérési típushoz
   handleRetakeBet: () => Promise<void>;

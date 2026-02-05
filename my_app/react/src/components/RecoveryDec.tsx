@@ -4,11 +4,15 @@ import type { GameStateData } from "../types/game-types";
 interface RecoveryDecProps {
   gameState: GameStateData;
   onContinue: () => void;
-  onAbandon: () => void;
+  onStartNew: () => void;
   isWFSR: boolean;
 }
 
-const RecoveryDec: React.FC<RecoveryDecProps> = ({onContinue, onAbandon, isWFSR}) => {
+const RecoveryDec: React.FC<RecoveryDecProps> = ({
+  onContinue,
+  onStartNew,
+  isWFSR,
+}) => {
   const [showButtons, setShowButtons] = useState(false);
   const timeoutIdRef = useRef<number | null>(null);
 
@@ -37,7 +41,7 @@ const RecoveryDec: React.FC<RecoveryDecProps> = ({onContinue, onAbandon, isWFSR}
           <button id="cont-button" onClick={onContinue} disabled={isWFSR}>
             {isWFSR ? "Loading..." : "Continue"}
           </button>
-          <button id="new-button" onClick={onAbandon} disabled={isWFSR}>
+          <button id="new-button" onClick={onStartNew} disabled={isWFSR}>
             {isWFSR ? "Loading..." : "Start New"}
           </button>
         </div>
