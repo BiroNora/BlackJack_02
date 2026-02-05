@@ -11,7 +11,7 @@ from my_app.backend.winner_state import WinnerState
 NONE = 0
 NUM_DECKS = 2
 CARDS_IN_DECK = 52
-TOTAL_INITIAL_CARDS = NUM_DECKS * CARDS_IN_DECK # 104
+TOTAL_INITIAL_CARDS = NUM_DECKS * CARDS_IN_DECK  # 104
 
 
 class Game:
@@ -540,7 +540,7 @@ class Game:
     def serialize_by_context(self, path):
         p = path or ""
 
-        if "recover_full_state" in p:
+        if "recover_game_state" in p:
             if self.players or self.split_req > 0:
                 return self.serialize_split_hand()
             return self.serialize_initial_and_hit_state()

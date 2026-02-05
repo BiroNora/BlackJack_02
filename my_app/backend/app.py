@@ -769,11 +769,11 @@ def force_restart_by_client_id(user):
 
 
 # 19
-@app.route("/api/recover_full_state", methods=["POST"])
+@app.route("/api/recover_game_state", methods=["POST"])
 @api_error_handler
 @login_required
 @with_game_state
-def recover_full_state(user, game):
+def recover_game_state(user, game):
     return (
         jsonify(
             {
