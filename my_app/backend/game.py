@@ -6,6 +6,7 @@ from collections import Counter
 from typing import Any, Dict
 
 from my_app.backend.hand_state import HandState
+from my_app.backend.phase_state import PhaseState
 from my_app.backend.winner_state import WinnerState
 
 NONE = 0
@@ -66,6 +67,16 @@ class Game:
         self.bet_list = []
         self.is_round_active = False
         self.has_rewards = False
+        self.target_phase = PhaseState.LOADING
+
+    def handle_start_action(self):
+        if len(self.deck) < 60:
+            self.create_deck()
+            self.is_round_active = False
+            self.target_phase = PhaseState.SHUFFLING
+        else:
+            self.initialize_new_round()
+            self.target_phase = PhaseState.INIT_GAME
 
     def initialize_new_round(self):
         self.clear_up()
@@ -458,9 +469,11 @@ class Game:
         self.unmasked_sum_sent = False
         self.is_round_active = False
         self.has_rewards = False
+        self.target_phase = PhaseState.BETTING
 
     def restart_game(self):
         self.__init__()
+        self.target_phase = PhaseState.RESTART_GAME
 
     def hand_to_ranks(self, hand):
         return "".join(c[-1] for c in hand)
@@ -539,9 +552,28 @@ class Game:
     def get_is_round_active(self):
         return self.is_round_active
 
+    def update_target_phase(self):
+        self.target_phase = self.get_target_phase()
+
+    # >>>> TARGET PHASE
+    def get_target_phase(self):
+        if not self.target_phase:
+            if not self.is_round_active:
+                return PhaseState.BETTING
+
+        return self.target_phase
+
     # Serialization's helpers
+    # "target_phase": self.get_target_phase().value()
     def serialize_by_context(self, path):
         p = path or ""
+
+        if "handle_start_action" in p:
+            if self.target_phase == PhaseState.SHUFFLING:
+                return self.serialize_for_client_bets()
+
+            if self.target_phase == PhaseState.INIT_GAME:
+                return self.serialize_initial_and_hit_state()
 
         if "recover_game_state" in p:
             if self.players or self.split_req > 0:
@@ -564,10 +596,10 @@ class Game:
         if "rewards" in p:
             return self.serialize_reward_state()
 
-        if any(x in p for x in ["start_game", "hit"]):
+        if any(x in p for x in ["hit"]):
             return self.serialize_initial_and_hit_state()
 
-        if any(x in p for x in ["bet", "retake_bet", "create_deck", "restart"]):
+        if any(x in p for x in ["bet", "retake_bet", "restart"]):
             return self.serialize_for_client_bets()
 
         return self.serialize_for_client_init()
@@ -726,6 +758,7 @@ class Game:
             "bet_list": self.bet_list,
             "is_round_active": self.is_round_active,
             "has_rewards": self.has_rewards,
+            "target_phase": self.get_target_phase().value,
         }
 
     @classmethod
@@ -749,4 +782,5 @@ class Game:
         game.bet_list = data["bet_list"]
         game.is_round_active = data.get("is_round_active", False)
         game.has_rewards = data.get("has_rewards", False)
+        game.target_phase = game.get_target_phase()
         return game

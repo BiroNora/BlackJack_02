@@ -364,6 +364,28 @@ def retake_bet(user, game):
 
 
 # 3
+@app.route("/api/handle_start_action", methods=["POST"])
+@api_error_handler
+@login_required
+@with_game_state
+def handle_start_action(user, game):
+    game.handle_start_action()
+
+    return (
+        jsonify(
+            {
+                "status": "success",
+                "message": "New round initialized.",
+                "current_tokens": user.tokens,
+                "game_state": game.serialize_by_context(request.path),
+                "game_state_hint": "NEW_ROUND_INITIALIZED",
+            }
+        ),
+        200,
+    )
+
+
+# 3A
 @app.route("/api/create_deck", methods=["POST"])
 @api_error_handler
 @login_required

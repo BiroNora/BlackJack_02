@@ -1,0 +1,31 @@
+from enum import Enum
+
+class PhaseState(str, Enum):
+    """A játék frontend fázisait jelölő Enum."""
+
+    # Technikai állapotok
+    LOADING = "LOADING"
+    RELOADING = "RELOADING"
+    ERROR = "ERROR"
+    OUT_OF_TOKENS = "OUT_OF_TOKENS"
+    RECOVERY_DECISION = "RECOVERY_DECISION"
+
+    # Játék előkészítése
+    SHUFFLING = "SHUFFLING"
+    BETTING = "BETTING"
+    INIT_GAME = "INIT_GAME"
+    RESTART_GAME = "RESTART_GAME"
+
+    # Fő játékmenet
+    MAIN_TURN = "MAIN_TURN"
+    MAIN_STAND = "MAIN_STAND"
+    MAIN_STAND_REWARDS_TRANSIT = "MAIN_STAND_REWARDS_TRANSIT"
+
+    # Split fázisok
+    SPLIT_TURN = "SPLIT_TURN"
+    SPLIT_STAND = "SPLIT_STAND"
+    SPLIT_STAND_DOUBLE = "SPLIT_STAND_DOUBLE"
+    SPLIT_NAT21_TRANSIT = "SPLIT_NAT21_TRANSIT"
+    SPLIT_ACE_TRANSIT = "SPLIT_ACE_TRANSIT"
+    SPLIT_FINISH = "SPLIT_FINISH"
+    SPLIT_FINISH_OUTCOME = "SPLIT_FINISH_OUTCOME"

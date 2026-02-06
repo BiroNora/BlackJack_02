@@ -169,6 +169,13 @@ export function useGameStateMachine(): GameStateMachineHookResult {
   const handleOnContinue = useCallback(async () => {
     setIsWFSR(true);
 
+    /* const recoverGame = async () => {
+        const data = await api.post("/api/recover_game_state");
+        // A szerver már kiszámolta a fázist, neked csak be kell állítanod
+        setGameState(data.game_state);
+        transitionToState(data.game_state.target_phase, data.game_state);
+      }; */
+
     try {
       const data = await handleApiAction(recoverGameState);
       if (data) {
