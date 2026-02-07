@@ -3,7 +3,6 @@ import {
   initializeSessionAPI,
   setBet,
   takeBackDeal,
-  getShuffling,
   clearGameState,
   recoverGameState,
   startGame,
@@ -170,7 +169,8 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     setIsWFSR(true);
 
     /* const recoverGame = async () => {
-        const data = await api.post("/api/recover_game_state");
+        setIsWFSR(true);
+        const data = await handleApiAction(recoverGameState);
         // A szerver már kiszámolta a fázist, neked csak be kell állítanod
         setGameState(data.game_state);
         transitionToState(data.game_state.target_phase, data.game_state);
@@ -544,6 +544,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     //console.log(`isProcessingRef_TRANSIT_UTAN: ${isProcessingRef.current}`);
 
     // --- LOADING ÁLLAPOT KEZELÉSE ---
+    // **
     if (gameState.currentGameState === "LOADING") {
       const initializeApplicationOnLoad = async () => {
         if (isAppInitializedRef.current) return;
@@ -574,41 +575,25 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           }
 
           const responseData = initData as SessionInitResponse;
-          const userTokens = responseData.tokens;
-          const deckLength = responseData.game_state.deck_len;
-          const has_active = responseData.game_state.is_round_active;
+          const { tokens, game_state } = responseData;
+          const { deck_len, is_round_active } = game_state;
 
-          if (isMountedRef.current) {
-            setInitDeckLen(deckLength);
-          }
+          const targetState = (tokens === 0 && !is_round_active)
+            ? "OUT_OF_TOKENS"
+            : (is_round_active ? "RECOVERY_DECISION" : "BETTING");
 
-          if (userTokens === 0) {
-            if (isMountedRef.current) {
-              transitionToState("OUT_OF_TOKENS");
-            }
-          } else {
-            if (isMountedRef.current) {
-              if (has_active) {
-                transitionToState("RECOVERY_DECISION", {
-                  tokens: userTokens,
-                  deck_len: deckLength,
-                });
-              }
-              else {
-                transitionToState("BETTING", {
-                  tokens: userTokens,
-                  deck_len: deckLength,
-                });
-              }
-            }
-          }
+          if (!isMountedRef.current) return;
+
+          setInitDeckLen(deck_len);
+
+          transitionToState(targetState, {
+            tokens: tokens,
+            deck_len: deck_len,
+          });
         } catch (error) {
           console.error("Initialization Error: ", error);
           if (isMountedRef.current) {
-            transitionToState("ERROR", {
-              tokens: 0,
-              deck_len: 0,
-            });
+            transitionToState("ERROR", { tokens: 0, deck_len: 0 });
           }
         }
       };
@@ -619,7 +604,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         if (!isMountedRef.current) return;
 
         try {
-          const data = await handleApiAction(getShuffling);
+          const data = await handleApiAction(startGame);
           if (!isMountedRef.current) return;
           if (data) {
             const response = extractGameStateData(data);
@@ -628,7 +613,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
                 if (isMountedRef.current) {
                   transitionToState("INIT_GAME", response);
                 }
-              }, 5000);
+              }, 500);
             }
           }
         } catch (e) {

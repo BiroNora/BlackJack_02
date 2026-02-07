@@ -59,8 +59,8 @@ class Game:
         self.split_req: int = 0
         self.unmasked_sum_sent = False
         self.suits = ["♥", "♦", "♣", "♠"]
-        # self.ranks = ["A", "K", "Q", "J", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
-        self.ranks = ["A", "K", "Q", "J", "9", "10"]
+        self.ranks = ["A", "K", "Q", "J", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+        # self.ranks = ["A", "K", "Q", "J", "9", "10"]
         self.deck = []
         self.deck_len_init = TOTAL_INITIAL_CARDS
         self.bet: int = 0
@@ -70,7 +70,7 @@ class Game:
         self.target_phase = PhaseState.LOADING
 
     def handle_start_action(self):
-        if len(self.deck) < 60:
+        if len(self.deck) < 104:
             self.create_deck()
             self.is_round_active = False
             self.target_phase = PhaseState.SHUFFLING
@@ -221,14 +221,20 @@ class Game:
 
         return self.winner
 
-    def hit(self):
+    def hit(self, is_double):
         if not self.is_round_active:
             return
         new_card = self.deck.pop(0)
         self.set_player_hand(new_card)
         self.player["has_hit"] = self.player.get("has_hit", 0) + 1
 
-        self.player["sum"] = self.sum(self.player["hand"], True)
+        curr_sum = self.sum(self.player["hand"], True)
+        self.player["sum"] = curr_sum
+
+        self.target_phase = (
+        PhaseState.MAIN_STAND_REWARDS_TRANSIT if curr_sum >= 21 or is_double
+        else PhaseState.MAIN_TURN
+        )
 
     def stand(self):
         count = self.sum(self.dealer_unmasked["hand"], False)
@@ -239,10 +245,12 @@ class Game:
                 count = self.sum(self.dealer_unmasked["hand"], False)
                 self.dealer_unmasked["sum"] = count
 
+        self.dealer_unmasked["sum"] = count
         self.dealer_unmasked["hand_state"] = self.hand_state(count, False)
         self.player["hand_state"] = self.hand_state(self.player["sum"], True)
         self.winner = NONE
         self.winner = self.winner_state()
+        self.target_phase = PhaseState.MAIN_STAND
 
     def rewards(self) -> int:
         bet = self.player["bet"]
@@ -274,7 +282,6 @@ class Game:
             return 0
 
     def insurance_request(self):
-        bet = self.bet
         ins_cost = math.ceil(self.bet / 2)
 
         if self.dealer_unmasked["natural_21"] == 3:
@@ -282,8 +289,13 @@ class Game:
             self.set_bet_list_to_null()
             self.is_round_active = False
             self.player["hand_state"] = self.hand_state(self.player["sum"], True)
+            self.target_phase = PhaseState.MAIN_STAND
 
-        return bet if self.natural_21 == 3 else -ins_cost
+            return self.bet
+        else:
+            self.target_phase = PhaseState.MAIN_TURN
+
+            return -ins_cost
 
     def double_request(self):
         self.player["bet"] += self.bet
@@ -491,6 +503,7 @@ class Game:
 
     def clear_game_state(self):
         self.__init__()
+        self.target_phase = PhaseState.BETTING
 
     # getters, setters
     def set_player_hand(self, card):
@@ -557,9 +570,12 @@ class Game:
 
     # >>>> TARGET PHASE
     def get_target_phase(self):
-        if not self.target_phase:
-            if not self.is_round_active:
-                return PhaseState.BETTING
+        if self.target_phase and self.target_phase != PhaseState.LOADING:
+            return self.target_phase
+
+        # 2. Ha LOADING-on állunk (vagy semmin), akkor nézzük meg, fut-e a kör.
+        if not self.is_round_active:
+            return PhaseState.BETTING
 
         return self.target_phase
 
@@ -608,6 +624,7 @@ class Game:
         return {
             "deck_len": TOTAL_INITIAL_CARDS if len(self.deck) == 0 else len(self.deck),
             "is_round_active": self.is_round_active,
+            "target_phase": self.get_target_phase().value,
         }
 
     def serialize_for_client_bets(self):
@@ -615,6 +632,7 @@ class Game:
             "bet": self.bet,
             "bet_list": self.bet_list,
             "deck_len": self.get_deck_len(),
+            "target_phase": self.get_target_phase().value,
         }
 
     def serialize_initial_and_hit_state(self):
@@ -624,6 +642,7 @@ class Game:
             "deck_len": self.get_deck_len(),
             "bet": self.bet,
             "is_round_active": self.is_round_active,
+            "target_phase": self.get_target_phase().value,
         }
 
     def serialize_for_insurance(self):
@@ -633,6 +652,7 @@ class Game:
             "deck_len": self.get_deck_len(),
             "bet": self.bet,
             "is_round_active": self.is_round_active,
+            "target_phase": self.get_target_phase().value,
         }
 
         if self.natural_21 == 3:
@@ -647,6 +667,7 @@ class Game:
             "player": self.player,
             "deck_len": self.get_deck_len(),
             "is_round_active": self.is_round_active,
+            "target_phase": self.get_target_phase().value,
         }
 
     def serialize_reward_state(self):
@@ -657,6 +678,7 @@ class Game:
             "bet": self.bet,
             "winner": self.winner,
             "is_round_active": self.is_round_active,
+            "target_phase": self.get_target_phase().value,
         }
 
     @staticmethod

@@ -278,17 +278,22 @@ def initialize_session():
     # A last_activity-t a modell automatikusan frissíti az onupdate miatt,
     # de itt is beállíthatjuk.
     user.last_activity = datetime.now(timezone.utc)
-    db.session.commit()
 
-    # 4. Játékállapot előkészítése a kliensnek
-    # A Postgres JSONB mezőjéből olvassuk ki
+    # 4. Játékállapot előkészítése
     if not user.current_game_state:
         game_instance = Game()
-        # AZONNAL MENTJÜK, hogy a következő, dekorált kérés már megtalálja!
         user.current_game_state = game_instance.serialize()
-        db.session.commit()
     else:
         game_instance = Game.deserialize(user.current_game_state)
+
+    # Árva tétek visszatérítése
+    if not game_instance.is_round_active and game_instance.bet > 0:
+        user.tokens += game_instance.bet
+        game_instance.bet = 0
+        game_instance.bet_list = []
+        user.current_game_state = game_instance.serialize()
+
+    db.session.commit()
 
     return (
         jsonify(
@@ -406,7 +411,7 @@ def create_deck(user, game):
     )
 
 
-# 4
+# 4A
 @app.route("/api/start_game", methods=["POST"])
 @api_error_handler
 @login_required
@@ -436,7 +441,6 @@ def start_game(user, game):
 def ins_request(user, game):
     bet = game.get_bet()
     insurance_amount = math.ceil(bet / 2)
-    game_state_for_client = game.serialize_by_context(request.path)
 
     if user.tokens < insurance_amount:
         raise ValueError("Insufficient tokens.")
@@ -450,7 +454,7 @@ def ins_request(user, game):
                 "status": "success",
                 "message": "Insurance placed successfully.",
                 "current_tokens": user.tokens,
-                "game_state": game_state_for_client,
+                "game_state": game.serialize_by_context(request.path),
                 "game_state_hint": "INSURANCE_PROCESSED",
             }
         ),
@@ -464,7 +468,7 @@ def ins_request(user, game):
 @login_required
 @with_game_state
 def hit(user, game):
-    game.hit()
+    game.hit(False)
 
     return (
         jsonify(
@@ -493,7 +497,7 @@ def double_request(user, game):
 
     amount_deducted = game.double_request()
     user.tokens -= amount_deducted
-    game.hit()
+    game.hit(True)
 
     return (
         jsonify(

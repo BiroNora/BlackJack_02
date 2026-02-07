@@ -8,7 +8,7 @@ interface BettingProps {
   gameState: GameStateData;
   onPlaceBet: (amount: number) => void;
   retakeBet: () => void;
-  onStartGame: (shouldShuffle: boolean) => void;
+  onStartGame: () => void;
   isWFSR: boolean;
 }
 
@@ -19,7 +19,7 @@ const Betting: React.FC<BettingProps> = ({
   onStartGame,
   isWFSR,
 }) => {
-  const { tokens, bet, deck_len } = gameState;
+  const { tokens, bet } = gameState;
 
   const [showButtons, setShowButtons] = useState(false);
   const timeoutIdRef = useRef<number | null>(null);
@@ -40,11 +40,6 @@ const Betting: React.FC<BettingProps> = ({
 
   const handleAllIn = () => {
     onPlaceBet(tokens);
-  };
-
-  const handleStartGame = async () => {
-    const shouldShuffle = deck_len === 0 || deck_len === 104 || deck_len < 60;
-    onStartGame(shouldShuffle);
   };
 
   const isDisabled = bet === 0;
@@ -93,7 +88,7 @@ const Betting: React.FC<BettingProps> = ({
     <div className="betting-screen-container">
       <motion.button
         id="start-button"
-        onClick={handleStartGame}
+        onClick={onStartGame}
         disabled={isDisabled || isWFSR}
         variants={variants}
         animate={isDisabled || isWFSR ? "disabled" : "enabled"}
