@@ -571,26 +571,10 @@ class Game:
 
     # >>>> TARGET PHASE
     def get_target_phase(self):
-        if self.target_phase and self.target_phase != PhaseState.LOADING:
-            return self.target_phase
-
-        # 2. Ha LOADING-on állunk (vagy semmin), akkor nézzük meg, fut-e a kör.
-        if not self.is_round_active:
-            return PhaseState.BETTING
-
         return self.target_phase
 
     def get_pre_phase(self):
-        if (
-            not self.is_round_active
-            and (len(self.deck) == TOTAL_INITIAL_CARDS or len(self.deck)) < 60
-        ):
-            return PhaseState.SHUFFLING
-
-        if self.pre_phase != PhaseState.NONE:
-            return self.pre_phase
-
-        return PhaseState.INIT_GAME
+        return self.pre_phase
 
     @staticmethod
     def _get_sort_key_combined(hand):

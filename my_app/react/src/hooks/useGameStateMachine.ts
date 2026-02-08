@@ -285,7 +285,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
   const handleStartGame = useCallback(async () => {
     const response = state.lastResponse;
-
+    console.log("handleStartGame response: ", response)
     if (!response) return;
 
     setIsWFSR(true);
@@ -528,13 +528,16 @@ export function useGameStateMachine(): GameStateMachineHookResult {
   // --- LOADING ÁLLAPOT KEZELÉSE ---
   useEffect(() => {
     // Ha nem LOADING-ban vagyunk, ez az effekt "alszik"
-    if (gameState.currentGameState !== "LOADING") return;
+    if (gameState.currentGameState !== "LOADING" || isProcessingRef.current) return;
+
+    // Dupla védelem: ha már inicializáltunk, nem futunk neki még egyszer
+    if (isAppInitializedRef.current) return;
+    isAppInitializedRef.current = true;
+
+    isProcessingRef.current = true;
+    console.log("--- INITIALIZING SESSION INDUL ---");
 
     const initializeApplicationOnLoad = async () => {
-      // Dupla védelem: ha már inicializáltunk, nem futunk neki még egyszer
-      if (isAppInitializedRef.current) return;
-      isAppInitializedRef.current = true;
-
       try {
         const minLoadingTimePromise = new Promise((resolve) => setTimeout(resolve, 700));
         const initializationPromise = handleApiAction(initializeSessionAPI);
@@ -544,25 +547,25 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           minLoadingTimePromise,
         ]);
 
-        if (!isMountedRef.current || !initData) return;
+        if (!isMountedRef.current || !initData) {
+          isProcessingRef.current = false;
+          return;
+        }
 
         const { tokens, game_state } = initData as SessionInitResponse;
-        const { deck_len, is_round_active } = game_state;
-        console.log("is_round_active: ", is_round_active)
-        console.log("deck_len: ", deck_len)
-        const targetState = (tokens === 0 && !is_round_active)
-          ? "OUT_OF_TOKENS"
-          : (is_round_active ? "RECOVERY_DECISION" : "BETTING");
 
-        setInitDeckLen(deck_len);
+        dispatch({
+          type: 'SYNC_SERVER_DATA',
+          payload: { tokens, ...game_state } as GameStateData
+        });
+
+        setInitDeckLen(game_state.deck_len);
 
         // FONTOS: Itt manuálisan jelezzük a gépnek, hogy felszabadultunk
         isProcessingRef.current = false;
 
-        transitionToState(targetState, {
-          tokens: tokens,
-          deck_len: deck_len,
-        });
+        const nextPhase = game_state.target_phase as GameState;
+        transitionToState(nextPhase, { tokens, ...game_state });
 
       } catch (error) {
         console.error("Initialization Error: ", error);
@@ -572,9 +575,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     };
 
     initializeApplicationOnLoad();
-
-    // Csak a fázisra figyelünk, így nem indul újra deck_len változásra!
-  }, [gameState.currentGameState, transitionToState, handleApiAction]);
+  }, [gameState.currentGameState, transitionToState, handleApiAction, dispatch]);
 
   // --- SHUFFLING ---
   useEffect(() => {

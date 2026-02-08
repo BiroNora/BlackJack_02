@@ -1,4 +1,5 @@
 from typing import Any, Dict
+from my_app.backend.game import TOTAL_INITIAL_CARDS
 from my_app.backend.phase_state import PhaseState
 
 
@@ -30,6 +31,8 @@ class GameSerializer:
             return GameSerializer.serialize_create_deck(game)
         if "start_game" in p:
             return GameSerializer.serialize_start_game(game)
+        if "clear_game_state" in p:
+            return GameSerializer.serialize_clear_game_state(game)
 
         if any(x in p for x in ["hit"]):
             return GameSerializer.serialize_initial_and_hit_state(game)
@@ -45,16 +48,33 @@ class GameSerializer:
             "deck_len": game.deck_len_init if len(game.deck) == 0 else len(game.deck),
             "is_round_active": game.is_round_active,
             "target_phase": game.get_target_phase().value,
+            "pre_phase": PhaseState.NONE.value
+        }
+
+    @staticmethod
+    def serialize_clear_game_state(game) -> Dict[str, Any]:
+        return {
+            "bet": 0,
+            "bet_list": [],
+            "deck_len": game.deck_len_init,
+            "is_round_active": False,
+            "target_phase": PhaseState.BETTING.value,
+            "pre_phase": PhaseState.NONE.value,
         }
 
     @staticmethod
     def serialize_for_client_bets(game) -> Dict[str, Any]:
+        if len(game.deck) == TOTAL_INITIAL_CARDS or len(game.deck) < 60:
+            calculated_phase = PhaseState.SHUFFLING
+        else:
+            calculated_phase = PhaseState.INIT_GAME
+
         return {
             "bet": game.bet,
             "bet_list": game.bet_list,
             "deck_len": game.get_deck_len(),
-            "target_phase": game.get_target_phase().value,
-            "pre_phase": game.get_pre_phase().value,
+            "target_phase": PhaseState.BETTING.value,
+            "pre_phase": calculated_phase.value,
         }
 
     @staticmethod

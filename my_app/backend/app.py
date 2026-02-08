@@ -13,6 +13,7 @@ from sqlalchemy.sql import func
 
 from my_app.backend.game import Game
 from my_app.backend.game_serializer import GameSerializer
+from my_app.backend.phase_state import PhaseState
 
 load_dotenv()
 
@@ -299,6 +300,20 @@ def initialize_session():
         user.current_game_state = game_instance.serialize()
 
     db.session.commit()
+    
+    if user.tokens <= 0 and not game_instance.is_round_active:
+        calculated_phase = PhaseState.OUT_OF_TOKENS
+    elif game_instance.is_round_active:
+        calculated_phase = PhaseState.RECOVERY_DECISION
+    else:
+        calculated_phase = PhaseState.BETTING
+
+    custom_game_state = {
+        "deck_len": game_instance.deck_len_init,
+        "is_round_active": game_instance.is_round_active,
+        "target_phase": calculated_phase,
+        "bet": game_instance.bet,
+    }
 
     return (
         jsonify(
@@ -307,9 +322,7 @@ def initialize_session():
                 "message": "User and game session initialized.",
                 "client_id": user.client_id,
                 "tokens": user.tokens,
-                "game_state": GameSerializer.serialize_by_context(
-                    game_instance, request.path
-                ),
+                "game_state": custom_game_state,
                 "game_state_hint": "USER_SESSION_INITIALIZED",
             }
         ),

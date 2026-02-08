@@ -67,6 +67,7 @@ export interface DealerUnmaskedData {
 export type GameStateForClient = {
   deck_len: number;
   is_round_active: boolean;
+  target_phase: GameState | null;
 };
 
 export type SessionInitResponse = {
@@ -98,7 +99,7 @@ export type GameStateMachineHookResult = {
   handlePlaceBet: (amount: number) => Promise<void>;
   //handleDeal: () => Promise<void>; // Hozzáadva a visszatérési típushoz
   handleRetakeBet: () => Promise<void>;
-  handleStartGame: (shouldShuffle: boolean) => void;
+  handleStartGame: () => void;
   handleHitRequest: () => Promise<void>;
   handleStandRequest: () => Promise<void>;
   handleDoubleRequest: () => Promise<void>;
