@@ -169,7 +169,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     },
     [transitionToState],
   );
-
+  // MÉG NINCS MEG! Legutolsó az állapotváltozás miatt
   const handleOnContinue = useCallback(async () => {
     setIsWFSR(true);
 
@@ -209,8 +209,17 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       const data = await handleApiAction(clearGameState);
       if (data) {
         if (!isMountedRef.current) return;
+
         const response = extractGameStateData(data);
-        transitionToState(response?.target_phase ?? "ERROR", response);
+
+        if (response) {
+          dispatch({
+            type: 'SYNC_SERVER_DATA',
+            payload: response as GameStateData
+          });
+
+          transitionToState(response.target_phase ?? "ERROR", response);
+        }
       }
     } catch {
       if (isMountedRef.current) {
@@ -221,7 +230,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         setIsWFSR(false);
       }
     }
-  }, [handleApiAction, transitionToState]);
+  }, [handleApiAction, transitionToState, dispatch]);
 
   const handlePlaceBet = useCallback(
     async (amount: number) => {
@@ -270,13 +279,13 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           const response = extractGameStateData(data);
 
           if (response) {
-              dispatch({
-                type: 'SYNC_SERVER_DATA',
-                payload: response as GameStateData
-              });
+            dispatch({
+              type: 'SYNC_SERVER_DATA',
+              payload: response as GameStateData
+            });
 
-              transitionToState(response.target_phase ?? "ERROR", response);
-            }
+            transitionToState(response.target_phase ?? "ERROR", response);
+          }
         }
       } catch {
         if (isMountedRef.current) {
@@ -315,9 +324,16 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       const data = await handleApiAction(handleHit);
       if (data) {
         if (!isMountedRef.current) return;
+
         const response = extractGameStateData(data);
-        if (response?.player) {
-          transitionToState(response?.target_phase ?? "ERROR", response);
+
+        if (response) {
+          dispatch({
+            type: 'SYNC_SERVER_DATA',
+            payload: response as GameStateData
+          });
+
+          transitionToState(response.target_phase ?? "ERROR", response);
         }
       }
     } catch {
@@ -329,7 +345,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         setIsWFSR(false);
       }
     }
-  }, [savePreActionState, handleApiAction, transitionToState]);
+  }, [savePreActionState, handleApiAction, transitionToState, dispatch]);
 
   const handleStandRequest = useCallback(async () => {
     setIsWFSR(true);
@@ -340,11 +356,20 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       const data = await handleApiAction(handleStandAndRewards);
       if (data) {
         if (!isMountedRef.current) return;
+
         const response = extractGameStateData(data);
+
         if (response) {
+          dispatch({
+            type: 'SYNC_SERVER_DATA',
+            payload: response as GameStateData
+          });
+
           timeoutIdRef.current = window.setTimeout(() => {
             if (isMountedRef.current) {
-              transitionToState(response?.target_phase ?? "ERROR", response);
+              if (response) {
+                transitionToState(response.target_phase ?? "ERROR", response);
+              }
             }
           }, 200);
         }
@@ -358,7 +383,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         setIsWFSR(false);
       }
     }
-  }, [savePreActionState, handleApiAction, transitionToState]);
+  }, [savePreActionState, handleApiAction, transitionToState, dispatch]);
 
   const handleDoubleRequest = useCallback(async () => {
     setIsWFSR(true);
@@ -369,9 +394,15 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       if (data) {
         if (!isMountedRef.current) return;
         const response = extractGameStateData(data);
-        if (response && response.player && response.tokens) {
-          setPreRewardBet(response.player.bet);
-          setPreRewardTokens(response.tokens);
+        if (response) {
+          dispatch({
+            type: 'SYNC_SERVER_DATA',
+            payload: response as GameStateData
+          });
+
+          if (response.player) setPreRewardBet(response.player.bet);
+          if (response.tokens) setPreRewardTokens(response.tokens);
+
           transitionToState(response?.target_phase ?? "ERROR", response);
         }
       }
@@ -384,7 +415,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         setIsWFSR(false);
       }
     }
-  }, [handleApiAction, transitionToState]);
+  }, [handleApiAction, transitionToState, dispatch]);
 
   const handleInsRequest = useCallback(async () => {
     setIsWFSR(true);
@@ -395,8 +426,17 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       const data = await handleApiAction(handleInsurance);
       if (data) {
         if (!isMountedRef.current) return;
+
         const response = extractGameStateData(data);
-        transitionToState(response?.target_phase ?? "ERROR", response);
+
+        if (response) {
+          dispatch({
+            type: 'SYNC_SERVER_DATA',
+            payload: response as GameStateData
+          });
+
+          transitionToState(response?.target_phase ?? "ERROR", response);
+        }
       }
     } catch {
       if (isMountedRef.current) {
@@ -407,8 +447,8 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         setIsWFSR(false);
       }
     }
-  }, [savePreActionState, handleApiAction, transitionToState]);
-
+  }, [savePreActionState, handleApiAction, transitionToState, dispatch]);
+  // INNEN
   // SPLIT part
   const handleSplitRequest = useCallback(async () => {
     if (isProcessingRef.current) return;
@@ -640,6 +680,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       try {
         setIsWFSR(true);
         resetGameVariables();
+        setInitDeckLen(gameState.deck_len);
 
         const data = await handleApiAction(startGame);
 
@@ -668,8 +709,8 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
     initGameAct();
 
-  }, [gameState.currentGameState, transitionToState, handleApiAction, resetGameVariables, dispatch]);
-
+  }, [gameState.currentGameState, transitionToState, handleApiAction, resetGameVariables, dispatch, gameState.deck_len]);
+  // INNEN
   useEffect(() => {
     if (gameState.currentGameState !== "MAIN_TURN") return;
 
