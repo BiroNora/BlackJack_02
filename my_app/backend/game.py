@@ -68,15 +68,24 @@ class Game:
         self.is_round_active = False
         self.has_rewards = False
         self.target_phase = PhaseState.LOADING
+        self.pre_phase = PhaseState.NONE
+        self.has_shuffled = False
 
-    def handle_start_action(self):
-        if len(self.deck) < 104:
-            self.create_deck()
-            self.is_round_active = False
-            self.target_phase = PhaseState.SHUFFLING
-        else:
-            self.initialize_new_round()
-            self.target_phase = PhaseState.INIT_GAME
+    #def handle_start_action(self):
+    #    if self.is_round_active and self.target_phase == PhaseState.INIT_GAME:
+    #        print("A kör már aktív, nem inicializálunk újra!")
+    #        return
+#
+    #    if (len(self.deck) == 104 or len(self.deck) < 60) and self.has_shuffled == False:
+    #        self.has_shuffled = True
+    #        self.create_deck()
+    #        self.is_round_active = False
+    #        self.target_phase = PhaseState.SHUFFLING
+    #    else:
+    #        self.initialize_new_round()
+    #        print("81 decklen: ", len(self.deck))
+    #        self.has_shuffled = False
+    #        self.target_phase = PhaseState.INIT_GAME
 
     def initialize_new_round(self):
         self.clear_up()
@@ -482,6 +491,7 @@ class Game:
         self.is_round_active = False
         self.has_rewards = False
         self.target_phase = PhaseState.BETTING
+        self.pre_phase = PhaseState.NONE
 
     def restart_game(self):
         self.__init__()
@@ -579,107 +589,14 @@ class Game:
 
         return self.target_phase
 
-    # Serialization's helpers
-    # "target_phase": self.get_target_phase().value()
-    def serialize_by_context(self, path):
-        p = path or ""
+    def get_pre_phase(self):
+        if not self.is_round_active and (len(self.deck) == TOTAL_INITIAL_CARDS or len(self.deck)) < 60:
+            return PhaseState.SHUFFLING
 
-        if "handle_start_action" in p:
-            if self.target_phase == PhaseState.SHUFFLING:
-                return self.serialize_for_client_bets()
+        if self.pre_phase != PhaseState.NONE:
+            return self.pre_phase
 
-            if self.target_phase == PhaseState.INIT_GAME:
-                return self.serialize_initial_and_hit_state()
-
-        if "recover_game_state" in p:
-            if self.players or self.split_req > 0:
-                return self.serialize_split_hand()
-            return self.serialize_initial_and_hit_state()
-
-        if "split_stand_and_rewards" in p:
-            return self.serialize_split_stand_and_rewards()
-        if "add_to_players_list_by_stand" in p:
-            return self.serialize_add_to_players_list_by_stand()
-        if "add_player_from_players" in p:
-            return self.serialize_add_player_from_players()
-        if "split" in p:
-            return self.serialize_split_hand()
-
-        if "ins_request" in p:
-            return self.serialize_for_insurance()
-        if "double_request" in p:
-            return self.serialize_double_state()
-        if "rewards" in p:
-            return self.serialize_reward_state()
-
-        if any(x in p for x in ["hit"]):
-            return self.serialize_initial_and_hit_state()
-
-        if any(x in p for x in ["bet", "retake_bet", "restart"]):
-            return self.serialize_for_client_bets()
-
-        return self.serialize_for_client_init()
-
-    def serialize_for_client_init(self):
-        return {
-            "deck_len": TOTAL_INITIAL_CARDS if len(self.deck) == 0 else len(self.deck),
-            "is_round_active": self.is_round_active,
-            "target_phase": self.get_target_phase().value,
-        }
-
-    def serialize_for_client_bets(self):
-        return {
-            "bet": self.bet,
-            "bet_list": self.bet_list,
-            "deck_len": self.get_deck_len(),
-            "target_phase": self.get_target_phase().value,
-        }
-
-    def serialize_initial_and_hit_state(self):
-        return {
-            "player": self.player,
-            "dealer_masked": self.dealer_masked,
-            "deck_len": self.get_deck_len(),
-            "bet": self.bet,
-            "is_round_active": self.is_round_active,
-            "target_phase": self.get_target_phase().value,
-        }
-
-    def serialize_for_insurance(self):
-        state = {
-            "player": self.player,
-            "natural_21": self.natural_21,
-            "deck_len": self.get_deck_len(),
-            "bet": self.bet,
-            "is_round_active": self.is_round_active,
-            "target_phase": self.get_target_phase().value,
-        }
-
-        if self.natural_21 == 3:
-            state["dealer_unmasked"] = self.dealer_unmasked
-        else:
-            state["dealer_masked"] = self.dealer_masked
-
-        return state
-
-    def serialize_double_state(self):
-        return {
-            "player": self.player,
-            "deck_len": self.get_deck_len(),
-            "is_round_active": self.is_round_active,
-            "target_phase": self.get_target_phase().value,
-        }
-
-    def serialize_reward_state(self):
-        return {
-            "player": self.player,
-            "dealer_unmasked": self.dealer_unmasked,
-            "deck_len": self.get_deck_len(),
-            "bet": self.bet,
-            "winner": self.winner,
-            "is_round_active": self.is_round_active,
-            "target_phase": self.get_target_phase().value,
-        }
+        return PhaseState.INIT_GAME
 
     @staticmethod
     def _get_sort_key_combined(hand):
@@ -687,76 +604,7 @@ class Game:
 
     def _get_sorted_hands(self):
         all_hands = list(self.players.values())
-
-        return sorted(all_hands, key=Game._get_sort_key_combined)
-
-    def serialize_split_hand(self):
-        sorted_players_list = self._get_sorted_hands()
-
-        return {
-            "player": self.player,
-            "dealer_masked": self.dealer_masked,
-            "aces": self.aces,
-            "players": sorted_players_list,
-            "split_req": self.split_req,
-            "deck_len": self.get_deck_len(),
-            "bet": self.bet,
-            "is_round_active": self.is_round_active,
-            "has_rewards": self.has_rewards,
-        }
-
-    def serialize_add_to_players_list_by_stand(self):
-        sorted_players_list = self._get_sorted_hands()
-
-        state = {
-            "player": self.player,
-            "aces": self.aces,
-            "players": sorted_players_list,
-            "split_req": self.split_req,
-            "deck_len": self.get_deck_len(),
-            "bet": self.bet,
-            "is_round_active": self.is_round_active,
-        }
-
-        if self.split_req > 0:
-            state["dealer_masked"] = self.dealer_masked
-        else:
-            dealer_data_to_serialize = self.dealer_unmasked.copy()
-            if not self.unmasked_sum_sent:
-                dealer_data_to_serialize["sum"] = 0
-                self.unmasked_sum_sent = True
-
-            state["dealer_unmasked"] = dealer_data_to_serialize
-
-        return state
-
-    def serialize_add_player_from_players(self):
-        sorted_players_list = self._get_sorted_hands()
-
-        return {
-            "player": self.player,
-            "dealer_unmasked": self.dealer_unmasked,
-            "aces": self.aces,
-            "players": sorted_players_list,
-            "split_req": self.split_req,
-            "deck_len": self.get_deck_len(),
-            "bet": self.bet,
-            "is_round_active": self.is_round_active,
-        }
-
-    def serialize_split_stand_and_rewards(self):
-        sorted_players_list = self._get_sorted_hands()
-
-        return {
-            "player": self.player,
-            "dealer_unmasked": self.dealer_unmasked,
-            "players": sorted_players_list,
-            "winner": self.winner,
-            "split_req": self.split_req,
-            "deck_len": self.get_deck_len(),
-            "bet": self.bet,
-            "is_round_active": self.is_round_active,
-        }
+        return sorted(all_hands, key=self._get_sort_key_combined)
 
     def serialize(self):
         sorted_players_list = self._get_sorted_hands()
@@ -781,6 +629,8 @@ class Game:
             "is_round_active": self.is_round_active,
             "has_rewards": self.has_rewards,
             "target_phase": self.get_target_phase().value,
+            "has_shuffled": self.has_shuffled,
+            "pre_phase": self.get_pre_phase().value,
         }
 
     @classmethod
@@ -804,5 +654,15 @@ class Game:
         game.bet_list = data["bet_list"]
         game.is_round_active = data.get("is_round_active", False)
         game.has_rewards = data.get("has_rewards", False)
-        game.target_phase = game.get_target_phase()
+        game.has_shuffled = data.get("has_shuffled", False)
+        raw_pre = data.get("pre_phase")
+        raw_target = data.get("target_phase")
+        if raw_target:
+            game.target_phase = PhaseState(raw_target)
+        if raw_pre:
+            game.pre_phase = PhaseState(raw_pre)
+        # Ha valamiért nem volt a mentésben, a get_ függvények adják meg az alapot
+        if not raw_target: game.target_phase = game.get_target_phase()
+        if not raw_pre: game.pre_phase = game.get_pre_phase()
+
         return game
