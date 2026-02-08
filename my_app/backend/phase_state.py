@@ -4,6 +4,7 @@ class PhaseState(str, Enum):
     """A játék frontend fázisait jelölő Enum."""
 
     # Technikai állapotok
+    NONE = "NONE"
     LOADING = "LOADING"
     RELOADING = "RELOADING"
     ERROR = "ERROR"

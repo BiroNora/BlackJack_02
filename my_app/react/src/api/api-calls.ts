@@ -51,8 +51,14 @@ export async function takeBackDeal() {
   return data;
 }
 
+export async function getShuffling() {
+  const data = await callApiEndpoint("/api/create_deck", "POST");
+
+  return data;
+}
+
 export async function startGame() {
-  const data = await callApiEndpoint("/api/handle_start_action", "POST");
+  const data = await callApiEndpoint("/api/start_game", "POST");
 
   return data;
 }

@@ -13,6 +13,7 @@ NONE = 0
 NUM_DECKS = 2
 CARDS_IN_DECK = 52
 TOTAL_INITIAL_CARDS = NUM_DECKS * CARDS_IN_DECK  # 104
+BJ_IMMEDIATE_STOP = {WinnerState.BLACKJACK_PLAYER_WON, WinnerState.BLACKJACK_PUSH}
 
 
 class Game:
@@ -69,23 +70,6 @@ class Game:
         self.has_rewards = False
         self.target_phase = PhaseState.LOADING
         self.pre_phase = PhaseState.NONE
-        self.has_shuffled = False
-
-    #def handle_start_action(self):
-    #    if self.is_round_active and self.target_phase == PhaseState.INIT_GAME:
-    #        print("A kör már aktív, nem inicializálunk újra!")
-    #        return
-#
-    #    if (len(self.deck) == 104 or len(self.deck) < 60) and self.has_shuffled == False:
-    #        self.has_shuffled = True
-    #        self.create_deck()
-    #        self.is_round_active = False
-    #        self.target_phase = PhaseState.SHUFFLING
-    #    else:
-    #        self.initialize_new_round()
-    #        print("81 decklen: ", len(self.deck))
-    #        self.has_shuffled = False
-    #        self.target_phase = PhaseState.INIT_GAME
 
     def initialize_new_round(self):
         self.clear_up()
@@ -105,12 +89,6 @@ class Game:
         dealer_unmasked_sum = self.sum(dealer_hand, False)
 
         self.natural_21 = self.init_natural_21_state(player_hand, dealer_hand)
-        nat_21 = WinnerState.NONE
-        if (
-            self.natural_21 == WinnerState.BLACKJACK_PLAYER_WON
-            or self.natural_21 == WinnerState.BLACKJACK_PUSH
-        ):
-            nat_21 = self.natural_21
 
         can_split = self.can_split(player_hand)
         can_insure = card4[-1] == "A"
@@ -121,7 +99,15 @@ class Game:
         dealer_unmasked_state = self.hand_state(dealer_unmasked_sum, False)
 
         bet = self.get_bet()
+
         self.is_round_active = True
+
+        self.target_phase = PhaseState.INIT_GAME
+        self.pre_phase = (
+            PhaseState.MAIN_STAND
+            if self.natural_21 in BJ_IMMEDIATE_STOP
+            else PhaseState.MAIN_TURN
+        )
 
         self.aces = True if card1[-1] == "A" and card3[-1] == "A" else False
 
@@ -139,7 +125,11 @@ class Game:
             "hand": dealer_masked,
             "sum": dealer_masked_sum,
             "can_insure": can_insure,
-            "nat_21": nat_21,  # Only 1/2/0
+            "nat_21": (
+                self.natural_21
+                if self.natural_21 in BJ_IMMEDIATE_STOP
+                else WinnerState.NONE
+            ),  # Only 1/2/0
         }
         self.dealer_unmasked: Dict[str, Any] = {
             "hand": dealer_hand,
@@ -241,8 +231,9 @@ class Game:
         self.player["sum"] = curr_sum
 
         self.target_phase = (
-        PhaseState.MAIN_STAND_REWARDS_TRANSIT if curr_sum >= 21 or is_double
-        else PhaseState.MAIN_TURN
+            PhaseState.MAIN_STAND_REWARDS_TRANSIT
+            if curr_sum >= 21 or is_double
+            else PhaseState.MAIN_TURN
         )
 
     def stand(self):
@@ -430,7 +421,7 @@ class Game:
         single_deck = [f"{suit}{rank}" for suit in self.suits for rank in self.ranks]
         self.deck = single_deck * 2
         random.shuffle(self.deck)
-
+        self.target_phase = PhaseState.INIT_GAME
         return self.deck
 
     # helpers
@@ -590,7 +581,10 @@ class Game:
         return self.target_phase
 
     def get_pre_phase(self):
-        if not self.is_round_active and (len(self.deck) == TOTAL_INITIAL_CARDS or len(self.deck)) < 60:
+        if (
+            not self.is_round_active
+            and (len(self.deck) == TOTAL_INITIAL_CARDS or len(self.deck)) < 60
+        ):
             return PhaseState.SHUFFLING
 
         if self.pre_phase != PhaseState.NONE:
@@ -629,7 +623,6 @@ class Game:
             "is_round_active": self.is_round_active,
             "has_rewards": self.has_rewards,
             "target_phase": self.get_target_phase().value,
-            "has_shuffled": self.has_shuffled,
             "pre_phase": self.get_pre_phase().value,
         }
 
@@ -654,7 +647,6 @@ class Game:
         game.bet_list = data["bet_list"]
         game.is_round_active = data.get("is_round_active", False)
         game.has_rewards = data.get("has_rewards", False)
-        game.has_shuffled = data.get("has_shuffled", False)
         raw_pre = data.get("pre_phase")
         raw_target = data.get("target_phase")
         if raw_target:
@@ -662,7 +654,9 @@ class Game:
         if raw_pre:
             game.pre_phase = PhaseState(raw_pre)
         # Ha valamiért nem volt a mentésben, a get_ függvények adják meg az alapot
-        if not raw_target: game.target_phase = game.get_target_phase()
-        if not raw_pre: game.pre_phase = game.get_pre_phase()
+        if not raw_target:
+            game.target_phase = game.get_target_phase()
+        if not raw_pre:
+            game.pre_phase = game.get_pre_phase()
 
         return game

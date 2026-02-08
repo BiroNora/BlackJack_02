@@ -7,12 +7,6 @@ class GameSerializer:
     def serialize_by_context(game, path: str) -> Dict[str, Any]:
         p = path or ""
 
-        if "handle_start_action" in p:
-            if game.target_phase == PhaseState.SHUFFLING:
-                return GameSerializer.serialize_for_client_bets(game)
-            if game.target_phase == PhaseState.INIT_GAME:
-                return GameSerializer.serialize_initial_and_hit_state(game)
-
         if "recover_game_state" in p:
             if game.players or game.split_req > 0:
                 return GameSerializer.serialize_split_hand(game)
@@ -32,6 +26,10 @@ class GameSerializer:
             return GameSerializer.serialize_double_state(game)
         if "rewards" in p:
             return GameSerializer.serialize_reward_state(game)
+        if "create_deck" in p:
+            return GameSerializer.serialize_create_deck(game)
+        if "start_game" in p:
+            return GameSerializer.serialize_start_game(game)
 
         if any(x in p for x in ["hit"]):
             return GameSerializer.serialize_initial_and_hit_state(game)
@@ -43,12 +41,8 @@ class GameSerializer:
 
     @staticmethod
     def serialize_for_client_init(game) -> Dict[str, Any]:
-        from my_app.backend.game import (
-            TOTAL_INITIAL_CARDS,
-        )  # Import itt a körkörösség elkerülésére
-
         return {
-            "deck_len": TOTAL_INITIAL_CARDS if len(game.deck) == 0 else len(game.deck),
+            "deck_len": game.deck_len_init if len(game.deck) == 0 else len(game.deck),
             "is_round_active": game.is_round_active,
             "target_phase": game.get_target_phase().value,
         }
@@ -64,6 +58,14 @@ class GameSerializer:
         }
 
     @staticmethod
+    def serialize_create_deck(game) -> Dict[str, Any]:
+        return {
+            "bet": game.bet,
+            "deck_len": game.deck_len_init,
+            "target_phase": game.get_target_phase().value,
+        }
+
+    @staticmethod
     def serialize_initial_and_hit_state(game) -> Dict[str, Any]:
         return {
             "player": game.player,
@@ -72,6 +74,18 @@ class GameSerializer:
             "bet": game.bet,
             "is_round_active": game.is_round_active,
             "target_phase": game.get_target_phase().value,
+        }
+
+    @staticmethod
+    def serialize_start_game(game) -> Dict[str, Any]:
+        return {
+            "player": game.player,
+            "dealer_masked": game.dealer_masked,
+            "deck_len": game.get_deck_len(),
+            "bet": game.bet,
+            "is_round_active": game.is_round_active,
+            "target_phase": game.get_target_phase().value,
+            "pre_phase": game.get_pre_phase().value,
         }
 
     @staticmethod

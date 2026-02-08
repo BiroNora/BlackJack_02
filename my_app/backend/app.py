@@ -144,7 +144,9 @@ def with_game_state(f):
                         "status": "success",
                         "idempotent": True,
                         "current_tokens": user.tokens,
-                        "game_state": GameSerializer.serialize_by_context(game, request.path),
+                        "game_state": GameSerializer.serialize_by_context(
+                            game, request.path
+                        ),
                     }
                 ),
                 200,
@@ -195,7 +197,9 @@ def api_error_handler(f):
 
             if game:
                 # Hiba esetén is a kontextusnak megfelelő állapotot küldjük
-                response_data["game_state"] = GameSerializer.serialize_by_context(game, request.path)
+                response_data["game_state"] = GameSerializer.serialize_by_context(
+                    game, request.path
+                )
             if user:
                 response_data["current_tokens"] = user.tokens
 
@@ -303,7 +307,9 @@ def initialize_session():
                 "message": "User and game session initialized.",
                 "client_id": user.client_id,
                 "tokens": user.tokens,
-                "game_state": GameSerializer.serialize_by_context(game_instance, request.path),
+                "game_state": GameSerializer.serialize_by_context(
+                    game_instance, request.path
+                ),
                 "game_state_hint": "USER_SESSION_INITIALIZED",
             }
         ),
@@ -370,28 +376,6 @@ def retake_bet(user, game):
 
 
 # 3
-@app.route("/api/handle_start_action", methods=["POST"])
-@api_error_handler
-@login_required
-@with_game_state
-def handle_start_action(user, game):
-    game.handle_start_action()
-
-    return (
-        jsonify(
-            {
-                "status": "success",
-                "message": "New round initialized.",
-                "current_tokens": user.tokens,
-                "game_state": GameSerializer.serialize_by_context(game, request.path),
-                "game_state_hint": "NEW_ROUND_INITIALIZED",
-            }
-        ),
-        200,
-    )
-
-
-# 3A
 @app.route("/api/create_deck", methods=["POST"])
 @api_error_handler
 @login_required
@@ -412,7 +396,7 @@ def create_deck(user, game):
     )
 
 
-# 4A
+# 4
 @app.route("/api/start_game", methods=["POST"])
 @api_error_handler
 @login_required

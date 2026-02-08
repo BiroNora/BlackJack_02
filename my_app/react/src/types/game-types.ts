@@ -35,6 +35,8 @@ export interface GameStateData {
   bet_list: number[];
   is_round_active: boolean;
   has_rewards: boolean;
+  target_phase: GameState | null;
+  pre_phase: GameState | null;
 }
 
 export interface PlayerData {
