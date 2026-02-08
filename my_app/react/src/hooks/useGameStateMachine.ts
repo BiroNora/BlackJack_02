@@ -225,8 +225,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
   const handlePlaceBet = useCallback(
     async (amount: number) => {
-      // Itt a régebbi gameState.tokens-t használod, ami oké,
-      // amíg le nem cseréljük teljesen a Reduceres state.tokens-re.
       if (gameState.tokens >= amount && amount > 0) {
         setIsWFSR(true);
 
@@ -268,8 +266,17 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         const data = await handleApiAction(takeBackDeal);
         if (data) {
           if (!isMountedRef.current) return;
+
           const response = extractGameStateData(data);
-          transitionToState(response?.target_phase ?? "ERROR", response);
+
+          if (response) {
+              dispatch({
+                type: 'SYNC_SERVER_DATA',
+                payload: response as GameStateData
+              });
+
+              transitionToState(response.target_phase ?? "ERROR", response);
+            }
         }
       } catch {
         if (isMountedRef.current) {
@@ -281,7 +288,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         }
       }
     }
-  }, [gameState.bet_list, handleApiAction, transitionToState]);
+  }, [gameState.bet_list, handleApiAction, transitionToState, dispatch]);
 
   const handleStartGame = useCallback(async () => {
     const response = state.lastResponse;
