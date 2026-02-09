@@ -16,7 +16,8 @@ export type GameAction =
   | { type: 'SET_DECK_LEN'; payload: number | null }
   | { type: 'SET_BET_SNAPSHOTS'; payload: { bet: number; tokens: number } }
   | { type: 'SET_INS_PLACED'; payload: boolean }
-  | { type: 'SET_SHOW_INS_LOST'; payload: boolean };
+  | { type: 'SET_SHOW_INS_LOST'; payload: boolean }
+  | { type: 'RESET_TURN_VARIABLES' };
 
 export const initialGameDataState: GameDataState = {
   gameState: {
@@ -52,6 +53,15 @@ export function gameReducer(state: GameDataState, action: GameAction): GameDataS
       return { ...state, insPlaced: action.payload };
     case 'SET_SHOW_INS_LOST':
       return { ...state, showInsLost: action.payload };
+    case 'RESET_TURN_VARIABLES':
+      return {
+        ...state,
+        initDeckLen: null,      // Pakli alaphelyzetbe álljon
+        preRewardBet: null,     // Nincs többé régi tét
+        preRewardTokens: null,  // Nincs többé régi zsetonérték
+        insPlaced: false,       // Biztosítás törlése
+        showInsLost: false      // Üzenet elrejtése
+      };
     default:
       return state;
   }

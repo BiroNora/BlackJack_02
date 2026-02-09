@@ -100,14 +100,14 @@ export type GameStateMachineHookResult = {
   //handleDeal: () => Promise<void>; // Hozzáadva a visszatérési típushoz
   handleRetakeBet: () => Promise<void>;
   handleStartGame: () => void;
-  handleHitRequest: () => Promise<void>;
-  handleStandRequest: () => Promise<void>;
-  handleDoubleRequest: () => Promise<void>;
+  handleHitRequest: () => void;
+  handleStandRequest: () => void;
+  handleDoubleRequest: () => void;
   handleSplitRequest: () => Promise<void>;
   handleSplitHitRequest: () => Promise<void>;
   handleSplitStandRequest: () => Promise<void>;
   handleSplitDoubleRequest: () => Promise<void>;
-  handleInsRequest: () => Promise<void>;
+  handleInsRequest: () => void;
   preRewardBet: number | null;
   preRewardTokens: number | null;
   insPlaced: boolean;

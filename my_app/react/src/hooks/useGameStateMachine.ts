@@ -76,10 +76,6 @@ const initialGameState: GameStateData = {
 export function useGameStateMachine(): GameStateMachineHookResult {
   const [gameState, setLocalGameState] =
     useState<GameStateData>(initialGameState);
-  const [preRewardBet, setPreRewardBet] = useState<number | null>(null);
-  const [preRewardTokens, setPreRewardTokens] = useState<number | null>(null);
-  const [insPlaced, setInsPlaced] = useState(false);
-  const [showInsLost, setShowInsLost] = useState(false);
   // isWaitingForServerResponse = isWFSR  (button disabling)
   // setIsWaitingForServerResponse = setIsWFSR
   const [isWFSR, setIsWFSR] = useState(false);
@@ -116,27 +112,45 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
   const savePreActionState = useCallback(() => {
     if (gameState) {
-      setPreRewardBet(gameState.player.bet);
-      setPreRewardTokens(gameState.tokens);
-    } else {
-      setPreRewardBet(null);
-      setPreRewardTokens(null);
+      // Használd a meglévő Reducer akciódat!
+      dispatch({
+        type: 'SET_BET_SNAPSHOTS',
+        payload: {
+          bet: gameState.player.bet,
+          tokens: gameState.tokens
+        }
+      });
     }
-  }, [gameState, setPreRewardBet, setPreRewardTokens]);
+  }, [gameState, dispatch]);
 
   const resetGameVariables = useCallback(() => {
-    setPreRewardBet(null);
-    setPreRewardTokens(null);
-    setInsPlaced(false);
-    setShowInsLost(false);
-    setIsWFSR(false);
-  }, []);
+    dispatch({ type: 'RESET_TURN_VARIABLES' });
 
-  /**
-   * Kezeli az aszinkron API hívásokat, és a hibák alapján meghatározza a viselkedést.
-   * @param apiCallFn Az aszinkron függvény, ami meghívja az API-t (pl. handleHit).
-   * @returns A sikeres API válasz.
-   */
+    // Az isWFSR-t (Wait For Server Response) érdemes lehet megtartani useState-ként,
+    // ha az csak a gombok tiltására szolgál és nem része a globális játékállapotnak.
+    setIsWFSR(false);
+  }, [dispatch]);
+
+  const executeAsyncAction = useCallback(async (actionFn: () => Promise<void>) => {
+    if (isProcessingRef.current) return;
+    isProcessingRef.current = true;
+    setIsWFSR(true);
+
+    try {
+      await actionFn();
+    } catch (error) {
+      console.error("Action error:", error);
+      if (isMountedRef.current) {
+        transitionToState("ERROR");
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsWFSR(false);
+        isProcessingRef.current = false;
+      }
+    }
+  }, [transitionToState]);
+
   const handleApiAction = useCallback(
     async <T>(apiCallFn: () => Promise<T>): Promise<T | null> => {
       try {
@@ -314,16 +328,17 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     setIsWFSR(false);
   }, [state.gameState, transitionToState]);
 
-  const handleHitRequest = useCallback(async () => {
-    setIsWFSR(true);
-    setShowInsLost(false);
-    savePreActionState();
+  const handleHitRequest = useCallback(() => {
+    executeAsyncAction(async () => {
+      dispatch({
+        type: 'SET_SHOW_INS_LOST',
+        payload: false
+      });
 
-    try {
+      savePreActionState();
+
       const data = await handleApiAction(handleHit);
-      if (data) {
-        if (!isMountedRef.current) return;
-
+      if (data && isMountedRef.current) {
         const response = extractGameStateData(data);
 
         if (response) {
@@ -335,63 +350,41 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           transitionToState(response.target_phase ?? "ERROR", response);
         }
       }
-    } catch {
-      if (isMountedRef.current) {
-        transitionToState("ERROR");
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setIsWFSR(false);
-      }
-    }
-  }, [savePreActionState, handleApiAction, transitionToState, dispatch]);
+    });
+  }, [executeAsyncAction, savePreActionState, handleApiAction, transitionToState]);
 
-  const handleStandRequest = useCallback(async () => {
-    setIsWFSR(true);
-    setShowInsLost(false);
-    savePreActionState();
+  const handleStandRequest = useCallback(() => {
+    executeAsyncAction(async () => {
+      dispatch({ type: 'SET_SHOW_INS_LOST', payload: false });
+      savePreActionState();
 
-    try {
       const data = await handleApiAction(handleStandAndRewards);
-      if (data) {
-        if (!isMountedRef.current) return;
 
+      if (data && isMountedRef.current) {
         const response = extractGameStateData(data);
-
         if (response) {
           dispatch({
             type: 'SYNC_SERVER_DATA',
             payload: response as GameStateData
           });
 
-          timeoutIdRef.current = window.setTimeout(() => {
-            if (isMountedRef.current) {
-              if (response) {
-                transitionToState(response.target_phase ?? "ERROR", response);
-              }
-            }
-          }, 200);
+          if (isMountedRef.current) {
+            transitionToState(response.target_phase ?? "ERROR", response);
+          }
         }
       }
-    } catch {
-      if (isMountedRef.current) {
-        transitionToState("ERROR");
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setIsWFSR(false);
-      }
-    }
-  }, [savePreActionState, handleApiAction, transitionToState, dispatch]);
+    });
+  }, [executeAsyncAction, savePreActionState, handleApiAction, transitionToState]);
 
-  const handleDoubleRequest = useCallback(async () => {
-    setIsWFSR(true);
-    setShowInsLost(false);
+  const handleDoubleRequest = useCallback(() => {
+    executeAsyncAction(async () => {
+      dispatch({
+        type: 'SET_SHOW_INS_LOST',
+        payload: false
+      });
 
-    try {
       const data = await handleApiAction(handleDouble);
-      if (data) {
-        if (!isMountedRef.current) return;
+      if (data && isMountedRef.current) {
         const response = extractGameStateData(data);
         if (response) {
           dispatch({
@@ -399,33 +392,34 @@ export function useGameStateMachine(): GameStateMachineHookResult {
             payload: response as GameStateData
           });
 
-          if (response.player) setPreRewardBet(response.player.bet);
-          if (response.tokens) setPreRewardTokens(response.tokens);
+          if (response.player && response.tokens !== undefined) {
+            dispatch({
+              type: 'SET_BET_SNAPSHOTS',
+              payload: {
+                bet: response.player.bet,
+                tokens: response.tokens
+              }
+            });
+          }
 
           transitionToState(response?.target_phase ?? "ERROR", response);
         }
       }
-    } catch {
-      if (isMountedRef.current) {
-        transitionToState("ERROR");
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setIsWFSR(false);
-      }
-    }
-  }, [handleApiAction, transitionToState, dispatch]);
+    });
+  }, [executeAsyncAction, handleApiAction, transitionToState]);
 
-  const handleInsRequest = useCallback(async () => {
-    setIsWFSR(true);
-    setInsPlaced(true);
-    savePreActionState();
+  const handleInsRequest = useCallback(() => {
+    executeAsyncAction(async () => {
+      dispatch({
+        type: 'SET_INS_PLACED',
+        payload: true
+      });
 
-    try {
+      savePreActionState();
+
+
       const data = await handleApiAction(handleInsurance);
-      if (data) {
-        if (!isMountedRef.current) return;
-
+      if (data && isMountedRef.current) {
         const response = extractGameStateData(data);
 
         if (response) {
@@ -437,16 +431,8 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           transitionToState(response?.target_phase ?? "ERROR", response);
         }
       }
-    } catch {
-      if (isMountedRef.current) {
-        transitionToState("ERROR");
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setIsWFSR(false);
-      }
-    }
-  }, [savePreActionState, handleApiAction, transitionToState, dispatch]);
+    });
+  }, [executeAsyncAction, savePreActionState, handleApiAction, transitionToState]);
   // INNEN
   // SPLIT part
   const handleSplitRequest = useCallback(async () => {
@@ -454,7 +440,11 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     isProcessingRef.current = true;
     console.log("Split elindítva, sorompó LEZÁRVA (true)");
     setIsWFSR(true);
-    setShowInsLost(false);
+    dispatch({
+      type: 'SET_SHOW_INS_LOST',
+      payload: false
+    });
+
     savePreActionState();
 
     try {
@@ -709,7 +699,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
     initGameAct();
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState.currentGameState,
     transitionToState,
     handleApiAction,
@@ -825,10 +815,10 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     handleSplitStandRequest,
     handleSplitDoubleRequest,
     handleInsRequest,
-    preRewardBet,
-    preRewardTokens,
-    insPlaced,
-    showInsLost,
+    preRewardBet: state.preRewardBet,
+    preRewardTokens: state.preRewardTokens,
+    showInsLost: state.showInsLost,
+    insPlaced: state.insPlaced,
     initDeckLen: state.initDeckLen,
     isWFSR,
   };

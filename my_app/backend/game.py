@@ -81,6 +81,7 @@ class Game:
         card4 = self.deck.pop(0)
         card1 = "♥K"
         card3 = "♣Q"
+        # card4 = "♣A"
         player_hand = [card1, card3]
         dealer_hand = [card2, card4]
         dealer_masked = [" ✪ ", card4]
