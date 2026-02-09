@@ -297,10 +297,12 @@ def initialize_session():
         user.tokens += game_instance.bet
         game_instance.bet = 0
         game_instance.bet_list = []
-        user.current_game_state = game_instance.serialize()
 
+    game_instance.is_session_init = True
+
+    user.current_game_state = game_instance.serialize()
     db.session.commit()
-    
+
     if user.tokens <= 0 and not game_instance.is_round_active:
         calculated_phase = PhaseState.OUT_OF_TOKENS
     elif game_instance.is_round_active:

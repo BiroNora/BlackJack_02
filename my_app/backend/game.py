@@ -70,6 +70,7 @@ class Game:
         self.has_rewards = False
         self.target_phase = PhaseState.LOADING
         self.pre_phase = PhaseState.NONE
+        self.is_session_init = False
 
     def initialize_new_round(self):
         self.clear_up()
@@ -101,6 +102,7 @@ class Game:
         bet = self.get_bet()
 
         self.is_round_active = True
+        self.is_session_init = False
 
         self.target_phase = PhaseState.INIT_GAME
         self.pre_phase = (
@@ -608,6 +610,7 @@ class Game:
             "has_rewards": self.has_rewards,
             "target_phase": self.get_target_phase().value,
             "pre_phase": self.get_pre_phase().value,
+            "is_session_init": self.is_session_init,
         }
 
     @classmethod
@@ -642,5 +645,6 @@ class Game:
             game.target_phase = game.get_target_phase()
         if not raw_pre:
             game.pre_phase = game.get_pre_phase()
+        game.is_session_init = data.get("is_session_init", False)
 
         return game

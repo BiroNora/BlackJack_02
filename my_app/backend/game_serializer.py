@@ -71,7 +71,7 @@ class GameSerializer:
                 else PhaseState.INIT_GAME
             ),
             "d_len": (
-                TOTAL_INITIAL_CARDS if not game.is_round_active else game.get_deck_len()
+                TOTAL_INITIAL_CARDS if (not game.is_round_active and game.is_session_init) else game.get_deck_len()
             ),
         }
 
