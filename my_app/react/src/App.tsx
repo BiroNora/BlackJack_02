@@ -121,7 +121,7 @@ function App() {
                   <div className="player-dealer-area-wrapper">
                     <PlayerDealerMasked
                       gameState={gameState}
-                      insMessage={showInsLost}
+                      showInsLost={showInsLost}
                     />
                   </div>
                   <div className="game-action-area-wrapper">
@@ -163,7 +163,7 @@ function App() {
                   <div className="player-dealer-area-wrapper">
                     <PlayerDealerMasked
                       gameState={gameState}
-                      insMessage={showInsLost}
+                      showInsLost={showInsLost}
                     />
                   </div>
                   <div className="game-action-area-wrapper">

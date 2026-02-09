@@ -5,12 +5,12 @@ import { maskedScore } from "../utilities/utils";
 
 interface TableProps {
   gameState: GameStateData;
-  insMessage: boolean;
+  showInsLost: boolean;
 }
 
 const PlayerDealerMasked: React.FC<TableProps> = ({
   gameState,
-  insMessage,
+  showInsLost,
 }) => {
   const { player, dealer_masked } = gameState;
 
@@ -94,7 +94,7 @@ const PlayerDealerMasked: React.FC<TableProps> = ({
           <span className="label-text1"> {player.sum}</span>
         </div>
         <div className="score-area-wrapper">
-          {insMessage ? (
+          {showInsLost ? (
             <span className="score-mood merriweather9red">Insurance lost</span>
           ) : (
             <span className="score-mood merriweather5grey2">{}</span>

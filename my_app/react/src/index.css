@@ -150,7 +150,7 @@ button {
   background-color: rgb(199, 239, 205);
   color: black;
   border: 0.2px solid rgb(166, 180, 199);
-  padding: 0.2em 1.1em;
+  padding: 0.2rem 1.1rem;
   cursor: pointer;
 }
 
