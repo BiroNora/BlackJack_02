@@ -96,7 +96,11 @@ function App() {
                 </div>
               );
             case "INIT_GAME":
-              return <div></div>;
+              return (
+                <div>
+                  <Cards gameState={gameState} initDeckLen={initDeckLen} />
+                </div>
+              );
             case "BETTING":
               return (
                 <div>

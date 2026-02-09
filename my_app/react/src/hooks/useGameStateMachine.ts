@@ -80,7 +80,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
   const [preRewardTokens, setPreRewardTokens] = useState<number | null>(null);
   const [insPlaced, setInsPlaced] = useState(false);
   const [showInsLost, setShowInsLost] = useState(false);
-  const [initDeckLen, setInitDeckLen] = useState<number | null>(null);
   // isWaitingForServerResponse = isWFSR  (button disabling)
   // setIsWaitingForServerResponse = setIsWFSR
   const [isWFSR, setIsWFSR] = useState(false);
@@ -606,7 +605,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           payload: { tokens, ...game_state } as GameStateData
         });
 
-        setInitDeckLen(game_state.deck_len);
+        dispatch({ type: 'SET_DECK_LEN', payload: game_state.deck_len });
 
         // FONTOS: Itt manuálisan jelezzük a gépnek, hogy felszabadultunk
         isProcessingRef.current = false;
@@ -680,7 +679,8 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       try {
         setIsWFSR(true);
         resetGameVariables();
-        setInitDeckLen(gameState.deck_len);
+        const currentDeckLen = state.gameState.deck_len;
+        dispatch({ type: 'SET_DECK_LEN', payload: currentDeckLen });
 
         const data = await handleApiAction(startGame);
 
@@ -709,7 +709,14 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
     initGameAct();
 
-  }, [gameState.currentGameState, transitionToState, handleApiAction, resetGameVariables, dispatch, gameState.deck_len]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState.currentGameState,
+    transitionToState,
+    handleApiAction,
+    resetGameVariables,
+    dispatch,
+    setIsWFSR]);
+
   // INNEN
   useEffect(() => {
     if (gameState.currentGameState !== "MAIN_TURN") return;
@@ -822,7 +829,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     preRewardTokens,
     insPlaced,
     showInsLost,
-    initDeckLen,
+    initDeckLen: state.initDeckLen,
     isWFSR,
   };
 }
