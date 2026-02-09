@@ -300,7 +300,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
   }, [gameState.bet_list, handleApiAction, transitionToState, dispatch]);
 
   const handleStartGame = useCallback(async () => {
-    const response = state.lastResponse;
+    const response = state.gameState;
     console.log("handleStartGame response: ", response)
     if (!response) return;
 
@@ -313,7 +313,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     transitionToState(nextState, response);
 
     setIsWFSR(false);
-  }, [state.lastResponse, transitionToState]);
+  }, [state.gameState, transitionToState]);
 
   const handleHitRequest = useCallback(async () => {
     setIsWFSR(true);
