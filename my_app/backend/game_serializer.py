@@ -48,7 +48,7 @@ class GameSerializer:
             "deck_len": game.deck_len_init if len(game.deck) == 0 else len(game.deck),
             "is_round_active": game.is_round_active,
             "target_phase": game.get_target_phase().value,
-            "pre_phase": PhaseState.NONE.value
+            "pre_phase": PhaseState.NONE.value,
         }
 
     @staticmethod
@@ -64,17 +64,23 @@ class GameSerializer:
 
     @staticmethod
     def serialize_for_client_bets(game) -> Dict[str, Any]:
-        if len(game.deck) == TOTAL_INITIAL_CARDS or len(game.deck) < 60:
-            calculated_phase = PhaseState.SHUFFLING
-        else:
-            calculated_phase = PhaseState.INIT_GAME
+        data = {
+            "calc_phase": (
+                PhaseState.SHUFFLING
+                if (len(game.deck) == TOTAL_INITIAL_CARDS or len(game.deck) < 60)
+                else PhaseState.INIT_GAME
+            ),
+            "d_len": (
+                TOTAL_INITIAL_CARDS if not game.is_round_active else game.get_deck_len()
+            ),
+        }
 
         return {
             "bet": game.bet,
             "bet_list": game.bet_list,
-            "deck_len": game.get_deck_len(),
+            "deck_len": data["d_len"],
             "target_phase": PhaseState.BETTING.value,
-            "pre_phase": calculated_phase.value,
+            "pre_phase": data["calc_phase"].value,
         }
 
     @staticmethod
