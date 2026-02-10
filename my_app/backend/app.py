@@ -547,13 +547,20 @@ def stand_and_rewards(user, game):
     token_change = game.rewards()
     user.tokens += token_change
 
+    game_data = GameSerializer.serialize_by_context(game, request.path)
+
+    if user.tokens <= 0:
+        game_data["pre_phase"] = PhaseState.OUT_OF_TOKENS.value
+    else:
+        game_data["pre_phase"] = PhaseState.BETTING.value
+
     return (
         jsonify(
             {
                 "status": "success",
                 "message": "Rewards processed and tokens updated.",
                 "current_tokens": user.tokens,
-                "game_state": GameSerializer.serialize_by_context(game, request.path),
+                "game_state": game_data,
                 "game_state_hint": "REWARDS_PROCESSED",
             }
         ),

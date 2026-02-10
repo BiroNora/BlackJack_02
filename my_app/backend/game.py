@@ -78,10 +78,10 @@ class Game:
         # card1 = self.deck.pop(0)
         card2 = self.deck.pop(0)
         # card3 = self.deck.pop(0)
-        card4 = self.deck.pop(0)
-        card1 = "♥K"
-        card3 = "♣Q"
-        # card4 = "♣A"
+        # card4 = self.deck.pop(0)
+        card1 = "♥2"
+        card3 = "♣2"
+        card4 = "♣A"
         player_hand = [card1, card3]
         dealer_hand = [card2, card4]
         dealer_masked = [" ✪ ", card4]
@@ -107,7 +107,7 @@ class Game:
 
         self.target_phase = PhaseState.INIT_GAME
         self.pre_phase = (
-            PhaseState.MAIN_STAND
+            PhaseState.MAIN_STAND_REWARDS_TRANSIT
             if self.natural_21 in BJ_IMMEDIATE_STOP
             else PhaseState.MAIN_TURN
         )

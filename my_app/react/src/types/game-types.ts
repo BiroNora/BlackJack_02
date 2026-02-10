@@ -94,11 +94,11 @@ export type GameStateMachineHookResult = {
     newState: GameState,
     newData?: Partial<GameStateData>
   ) => void;
-  handleOnContinue: () => Promise<void>;
-  handleOnStartNew: () => Promise<void>;
+  handleOnContinue: () => void;
+  handleOnStartNew: () => void;
   handlePlaceBet: (amount: number) => Promise<void>;
   //handleDeal: () => Promise<void>; // Hozzáadva a visszatérési típushoz
-  handleRetakeBet: () => Promise<void>;
+  handleRetakeBet: () => void;
   handleStartGame: () => void;
   handleHitRequest: () => void;
   handleStandRequest: () => void;

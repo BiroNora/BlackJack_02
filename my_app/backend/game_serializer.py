@@ -64,23 +64,27 @@ class GameSerializer:
 
     @staticmethod
     def serialize_for_client_bets(game) -> Dict[str, Any]:
-        data = {
-            "calc_phase": (
-                PhaseState.SHUFFLING
-                if (len(game.deck) == TOTAL_INITIAL_CARDS or len(game.deck) < 60)
-                else PhaseState.INIT_GAME
-            ),
-            "d_len": (
-                TOTAL_INITIAL_CARDS if (not game.is_round_active and game.is_session_init) else game.get_deck_len()
-            ),
-        }
+        # Ha nem aktív a kör és most indult a session, akkor kényszerítjük a 104-et,
+        # minden más esetben a valódi deck hosszt használjuk.
+        d_len = (
+            TOTAL_INITIAL_CARDS
+            if (not game.is_round_active and game.is_session_init)
+            else game.get_deck_len()
+        )
+
+        # A d_len alapján határozzuk meg a fázist
+        calc_phase = (
+            PhaseState.SHUFFLING
+            if (d_len == TOTAL_INITIAL_CARDS or d_len < 60)
+            else PhaseState.INIT_GAME
+        )
 
         return {
             "bet": game.bet,
             "bet_list": game.bet_list,
-            "deck_len": data["d_len"],
+            "deck_len": d_len,
             "target_phase": PhaseState.BETTING.value,
-            "pre_phase": data["calc_phase"].value,
+            "pre_phase": calc_phase.value,
         }
 
     @staticmethod
@@ -123,6 +127,7 @@ class GameSerializer:
             "bet": game.bet,
             "is_round_active": game.is_round_active,
             "target_phase": game.get_target_phase().value,
+            
         }
         if game.natural_21 == 3:
             state["dealer_unmasked"] = game.dealer_unmasked
@@ -141,7 +146,7 @@ class GameSerializer:
 
     @staticmethod
     def serialize_reward_state(game) -> Dict[str, Any]:
-        return {
+            return {
             "player": game.player,
             "dealer_unmasked": game.dealer_unmasked,
             "deck_len": game.get_deck_len(),

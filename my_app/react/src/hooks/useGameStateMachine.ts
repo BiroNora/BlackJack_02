@@ -138,6 +138,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
     try {
       await actionFn();
+      if (!isMountedRef.current) return;
     } catch (error) {
       console.error("Action error:", error);
       if (isMountedRef.current) {
@@ -152,32 +153,20 @@ export function useGameStateMachine(): GameStateMachineHookResult {
   }, [transitionToState]);
 
   const handleApiAction = useCallback(
-    async <T>(apiCallFn: () => Promise<T>): Promise<T | null> => {
+    async <T,>(apiCallFn: () => Promise<T>): Promise<T | null> => {
       try {
-        const data = await apiCallFn();
-        return data;
+        return await apiCallFn();
       } catch (error) {
         const httpError = error as HttpError;
-        const response = httpError.response;
+        const status = httpError.response?.status;
 
-        if (response && typeof response.status === "number") {
-          const status = response.status;
+        console.error(status && status < 500 ? "Kliens hiba:" : "Szerver hiba:", error);
 
-          if (status >= 400 && status < 500) {
-            const errorMessage = httpError.message || "Érvénytelen kérés.";
-            console.warn(`Nem kritikus API hiba (4xx): ${errorMessage}`);
-            return null;
-          } else {
-            console.error("Kritikus hiba (5xx vagy hálózati):", error);
-            transitionToState("ERROR");
-            return null;
-          }
+        if (isMountedRef.current) {
+          transitionToState("ERROR");
         }
 
-        // Ha nincs response.status (pl. hálózati timeout vagy nem HttpError)
-        console.error("Hálózati vagy ismeretlen API hiba:", error);
-        transitionToState("ERROR");
-        return null;
+        throw error; // Megállítja a végrehajtást a gomb-kezelőben is!
       }
     },
     [transitionToState],
@@ -215,102 +204,66 @@ export function useGameStateMachine(): GameStateMachineHookResult {
   }, [handleApiAction, transitionToState]);
 
 
-  const handleOnStartNew = useCallback(async () => {
-    setIsWFSR(true);
-
-    try {
+  const handleOnStartNew = useCallback(() => {
+    executeAsyncAction(async () => {
+      // 1. Meghívjuk az API-t a diplomata (handleApiAction) segítségével
+      // Ha hiba van, a throw miatt itt megáll, és az executeAsyncAction catch ága vált ERROR-ra
       const data = await handleApiAction(clearGameState);
-      if (data) {
-        if (!isMountedRef.current) return;
 
-        const response = extractGameStateData(data);
+      // 2. Feldolgozzuk az adatot (itt már biztosan van data, különben throw történt volna)
+      const response = extractGameStateData(data);
+      if (!response) return;
 
-        if (response) {
-          dispatch({
-            type: 'SYNC_SERVER_DATA',
-            payload: response as GameStateData
-          });
+      // 3. Szinkronizálunk
+      dispatch({
+        type: 'SYNC_SERVER_DATA',
+        payload: response as GameStateData
+      });
 
-          transitionToState(response.target_phase ?? "ERROR", response);
-        }
-      }
-    } catch {
-      if (isMountedRef.current) {
-        transitionToState("ERROR");
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setIsWFSR(false);
-      }
-    }
-  }, [handleApiAction, transitionToState, dispatch]);
+      // 4. Átlépünk az új fázisba (SHUFFLING vagy BETTING a szerver döntése alapján)
+      transitionToState(response.target_phase ?? "ERROR", response);
+    });
+  }, [executeAsyncAction, handleApiAction, transitionToState, dispatch]);
 
   const handlePlaceBet = useCallback(
     async (amount: number) => {
-      if (gameState.tokens >= amount && amount > 0) {
-        setIsWFSR(true);
+      if (gameState.tokens < amount || amount <= 0) return;
 
-        try {
-          const data = await handleApiAction(() => setBet(amount));
-          if (data) {
-            if (!isMountedRef.current) return;
+      executeAsyncAction(async () => {
+        const data = await handleApiAction(() => setBet(amount));
 
-            const response = extractGameStateData(data);
+        const response = extractGameStateData(data);
+        if (!response) return;
 
-            if (response) {
-              dispatch({
-                type: 'SYNC_SERVER_DATA',
-                payload: response as GameStateData
-              });
+        dispatch({
+          type: 'SYNC_SERVER_DATA',
+          payload: response as GameStateData
+        });
 
-              transitionToState(response.target_phase ?? "ERROR", response);
-            }
-          }
-        } catch {
-          if (isMountedRef.current) {
-            transitionToState("ERROR");
-          }
-        } finally {
-          if (isMountedRef.current) {
-            setIsWFSR(false);
-          }
-        }
-      }
+        transitionToState(response.target_phase ?? "ERROR", response);
+      });
     },
-    [gameState.tokens, handleApiAction, transitionToState, dispatch]
+    [gameState.tokens, executeAsyncAction, handleApiAction, transitionToState, dispatch]
   );
 
-  const handleRetakeBet = useCallback(async () => {
-    if (gameState.bet_list) {
-      setIsWFSR(true);
+  const handleRetakeBet = useCallback(() => {
+    // Guard clause: csak akkor indítunk, ha van mit visszavenni
+    if (!gameState.bet_list || gameState.bet_list.length === 0) return;
 
-      try {
-        const data = await handleApiAction(takeBackDeal);
-        if (data) {
-          if (!isMountedRef.current) return;
+    executeAsyncAction(async () => {
+      const data = await handleApiAction(takeBackDeal);
 
-          const response = extractGameStateData(data);
+      const response = extractGameStateData(data);
+      if (!response) return;
 
-          if (response) {
-            dispatch({
-              type: 'SYNC_SERVER_DATA',
-              payload: response as GameStateData
-            });
+      dispatch({
+        type: 'SYNC_SERVER_DATA',
+        payload: response as GameStateData
+      });
 
-            transitionToState(response.target_phase ?? "ERROR", response);
-          }
-        }
-      } catch {
-        if (isMountedRef.current) {
-          transitionToState("ERROR");
-        }
-      } finally {
-        if (isMountedRef.current) {
-          setIsWFSR(false);
-        }
-      }
-    }
-  }, [gameState.bet_list, handleApiAction, transitionToState, dispatch]);
+      transitionToState(response.target_phase ?? "ERROR", response);
+    });
+  }, [gameState.bet_list, executeAsyncAction, handleApiAction, transitionToState, dispatch]);
 
   const handleStartGame = useCallback(async () => {
     const response = state.gameState;
@@ -334,22 +287,19 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         type: 'SET_SHOW_INS_LOST',
         payload: false
       });
-
       savePreActionState();
 
       const data = await handleApiAction(handleHit);
-      if (data && isMountedRef.current) {
-        const response = extractGameStateData(data);
+      const response = extractGameStateData(data);
 
-        if (response) {
-          dispatch({
-            type: 'SYNC_SERVER_DATA',
-            payload: response as GameStateData
-          });
+      if (!response) return;
 
-          transitionToState(response.target_phase ?? "ERROR", response);
-        }
-      }
+      dispatch({
+        type: 'SYNC_SERVER_DATA',
+        payload: response as GameStateData
+      });
+
+      transitionToState(response.target_phase ?? "ERROR", response);
     });
   }, [executeAsyncAction, savePreActionState, handleApiAction, transitionToState]);
 
@@ -360,19 +310,14 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
       const data = await handleApiAction(handleStandAndRewards);
 
-      if (data && isMountedRef.current) {
-        const response = extractGameStateData(data);
-        if (response) {
-          dispatch({
-            type: 'SYNC_SERVER_DATA',
-            payload: response as GameStateData
-          });
+      const response = extractGameStateData(data);
+      if (!response) return;
+      dispatch({
+        type: 'SYNC_SERVER_DATA',
+        payload: response as GameStateData
+      });
 
-          if (isMountedRef.current) {
-            transitionToState(response.target_phase ?? "ERROR", response);
-          }
-        }
-      }
+      transitionToState(response.target_phase ?? "ERROR", response);
     });
   }, [executeAsyncAction, savePreActionState, handleApiAction, transitionToState]);
 
@@ -384,27 +329,25 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       });
 
       const data = await handleApiAction(handleDouble);
-      if (data && isMountedRef.current) {
-        const response = extractGameStateData(data);
-        if (response) {
-          dispatch({
-            type: 'SYNC_SERVER_DATA',
-            payload: response as GameStateData
-          });
 
-          if (response.player && response.tokens !== undefined) {
-            dispatch({
-              type: 'SET_BET_SNAPSHOTS',
-              payload: {
-                bet: response.player.bet,
-                tokens: response.tokens
-              }
-            });
+      const response = extractGameStateData(data);
+      if (!response) return;
+      dispatch({
+        type: 'SYNC_SERVER_DATA',
+        payload: response as GameStateData
+      });
+
+      if (response.player && response.tokens !== undefined) {
+        dispatch({
+          type: 'SET_BET_SNAPSHOTS',
+          payload: {
+            bet: response.player.bet,
+            tokens: response.tokens
           }
-
-          transitionToState(response?.target_phase ?? "ERROR", response);
-        }
+        });
       }
+
+      transitionToState(response?.target_phase ?? "ERROR", response);
     });
   }, [executeAsyncAction, handleApiAction, transitionToState]);
 
@@ -414,23 +357,21 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         type: 'SET_INS_PLACED',
         payload: true
       });
-
       savePreActionState();
 
-
       const data = await handleApiAction(handleInsurance);
-      if (data && isMountedRef.current) {
-        const response = extractGameStateData(data);
+      const response = extractGameStateData(data);
+      if (!response) return;
 
-        if (response) {
-          dispatch({
-            type: 'SYNC_SERVER_DATA',
-            payload: response as GameStateData
-          });
+      dispatch({
+        type: 'SYNC_SERVER_DATA',
+        payload: response as GameStateData
+      });
 
-          transitionToState(response?.target_phase ?? "ERROR", response);
-        }
+      if (response.target_phase === "MAIN_TURN") {
+        dispatch({ type: 'SET_SHOW_INS_LOST', payload: true });
       }
+      transitionToState(response?.target_phase ?? "ERROR", response);
     });
   }, [executeAsyncAction, savePreActionState, handleApiAction, transitionToState]);
   // INNEN
@@ -708,70 +649,37 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     setIsWFSR]);
 
   // INNEN
-  useEffect(() => {
-    if (gameState.currentGameState !== "MAIN_TURN") return;
-
-    const MainTurn = async () => {
-      // Itt ne zárd le a lakatot azonnal, mert a gombnyomásoknak működniük kell!
-      setIsWFSR(true);
-      try {
-        // Ha eléri a 21-et vagy többet, automatikusan továbbküldjük
-        if (gameState.player.sum >= 21) {
-          if (isProcessingRef.current) return;
-          isProcessingRef.current = true; // Csak az átmenetnél zárunk
-
-          transitionToState("MAIN_STAND_REWARDS_TRANSIT", gameState);
-        }
-      } catch {
-        if (isMountedRef.current) transitionToState("ERROR");
-      } finally {
-        if (isMountedRef.current) setIsWFSR(false);
-      }
-    };
-    MainTurn();
-  }, [gameState, gameState.currentGameState, gameState.player.sum, transitionToState]);
 
   useEffect(() => {
-    if (gameState.currentGameState !== "MAIN_STAND") return;
-    if (isProcessingRef.current) return;
+    if (gameState.currentGameState !== "MAIN_STAND" || isProcessingRef.current) return;
 
     isProcessingRef.current = true; // Lezárjuk a 4 másodpercre
-    console.log("--- MAIN_STAND: Eredmény mutatása ---");
+    console.log("--- MAIN_STAND INDUL ---");
 
     timeoutIdRef.current = window.setTimeout(() => {
       if (isMountedRef.current) {
-        isProcessingRef.current = false; // NYITÁS a váltás előtt
+        isProcessingRef.current = false;
 
-        if (gameState.tokens === 0) {
-          transitionToState("OUT_OF_TOKENS");
-        } else {
-          const nextRoundGameState: Partial<GameStateData> = {
-            ...initialGameState,
-            currentGameState: "BETTING",
-            deck_len: gameState.deck_len,
-            tokens: gameState.tokens,
-            bet: 0,
-          };
-          transitionToState("BETTING", nextRoundGameState);
-        }
+        const nextPhase = (gameState.pre_phase as GameState) ?? "BETTING";
+        transitionToState(nextPhase, gameState);
       }
     }, 4000);
 
     return () => {
       if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
     };
-  }, [gameState.currentGameState, gameState.tokens, gameState.deck_len, transitionToState]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState.currentGameState, gameState.pre_phase, transitionToState]);
 
   useEffect(() => {
-    if (gameState.currentGameState !== "MAIN_STAND_REWARDS_TRANSIT") return;
-    if (isProcessingRef.current) return;
+    if (gameState.currentGameState !== "MAIN_STAND_REWARDS_TRANSIT" || isProcessingRef.current) return;
 
     isProcessingRef.current = true;
-    console.log("--- MAIN_STAND_REWARDS_TRANSIT: API hívás ---");
+    console.log("--- MAIN_STAND_REWARDS_TRANSIT INDUL ---");
 
-    const MainStandDoubleTransit = async () => {
+    const MainStandTransit = async () => {
       try {
-        const data = await handleStandAndRewards();
+        const data = await handleApiAction(handleStandAndRewards);
         if (data && isMountedRef.current) {
           const response = extractGameStateData(data);
 
@@ -779,7 +687,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
             timeoutIdRef.current = window.setTimeout(() => {
               if (isMountedRef.current) {
                 isProcessingRef.current = false; // NYITÁS
-                transitionToState("MAIN_STAND", response);
+                transitionToState(response?.target_phase as GameState, response);
               }
             }, 200);
           }
@@ -792,8 +700,8 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       }
     };
 
-    MainStandDoubleTransit();
-  }, [gameState.currentGameState, transitionToState]);
+    MainStandTransit();
+  }, [gameState.currentGameState, handleApiAction, transitionToState]);
 
 
 
