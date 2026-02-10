@@ -2,6 +2,7 @@
 from my_app.backend.game import BJ_IMMEDIATE_STOP, Game
 from my_app.backend.phase_state import PhaseState
 from my_app.backend.winner_state import WinnerState
+from my_app.backend.game_serializer import GameSerializer
 
 
 def run_diagnostics():
@@ -9,25 +10,34 @@ def run_diagnostics():
     # --- 1. RÉSZ: Blackjack logics Tesztek ---
     print("=== BLACKJACK LOGIKAI ELLENŐRZÉS ===")
 
-    # Teszt esetek listája: (leírás, deck_méret, is_active, manuális_pre, várt_eredmény)
-    test_cases = [
-        ("Teli pakli indításkor", 104, False, PhaseState.NONE, PhaseState.SHUFFLING),
-        ("Normál játékmenet", 80, False, PhaseState.NONE, PhaseState.INIT_GAME),
-        ("Kevés lap a pakliban", 55, False, PhaseState.NONE, PhaseState.SHUFFLING),
-        ("Aktív kör alatt (nem szabadna keverni)", 55, True, PhaseState.NONE, PhaseState.INIT_GAME),
-        ("Manuális felülbírálás", 80, False, PhaseState.LOADING, PhaseState.LOADING),
+    # --- 1. RÉSZ: Client Bets Serialization Teszt ---
+    print("=== CLIENT BETS (CALC_PHASE) ELLENŐRZÉS ===")
+
+    # Teszt esetek: (leírás, deck_méret, is_active, is_init, elvárt_pre)
+    client_bet_tests = [
+        ("Teli pakli, új session", 104, False, True, "SHUFFLING"),
+        ("Normál pakli, folyamatban", 80, False, False, "INIT_GAME"),
+        ("Kevés lap, keverni kell", 55, False, False, "SHUFFLING"),
+        ("Aktív kör (valódi hosszt néz)", 55, True, False, "SHUFFLING"),
     ]
 
-    for desc, deck_size, active, manual, expected in test_cases:
-        game.deck = [i for i in range(deck_size)]
+    for desc, deck_size, active, is_init, expected_pre in client_bet_tests:
+        game.clear_up()
+        game.deck = ["X"] * deck_size
         game.is_round_active = active
-        game.pre_phase = manual
+        game.is_session_init = is_init
 
-        result = game.get_pre_phase()
-        status = "✅ OK" if result == expected else f"❌ HIBA (Kapott: {result})"
+        # Itt hívjuk meg a konkrét szériázót, amit tesztelni akarunk
+        # A hívás helyesen:
+        serialized = GameSerializer.serialize_for_client_bets(game)
 
-        print(f"[{desc}] -> {status}")
+        actual_pre = serialized["pre_phase"]
+        status = "✅ OK" if actual_pre == expected_pre else f"❌ HIBA (Kapott: {actual_pre})"
 
+        print(f"[{desc}]")
+        print(f"  - Deck len (számolt): {serialized['deck_len']}")
+        print(f"  - Pre-phase: {actual_pre} (Várt: {expected_pre})")
+        print(f"  EREDMÉNY: {status}\n")
     # --- 2. RÉSZ: Blackjack Stop & Target Phase Tesztek ---
     print("\n=== INITIAL GAME & BJ STOP TESZTEK ===")
 

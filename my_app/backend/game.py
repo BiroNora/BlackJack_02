@@ -81,6 +81,7 @@ class Game:
         # card4 = self.deck.pop(0)
         card1 = "♥2"
         card3 = "♣2"
+        # card2 = "♦Q"
         card4 = "♣A"
         player_hand = [card1, card3]
         dealer_hand = [card2, card4]
@@ -293,10 +294,12 @@ class Game:
             self.is_round_active = False
             self.player["hand_state"] = self.hand_state(self.player["sum"], True)
             self.target_phase = PhaseState.MAIN_STAND
+            self.pre_phase = PhaseState.BETTING
 
             return self.bet
         else:
             self.target_phase = PhaseState.MAIN_TURN
+            self.pre_phase = PhaseState.NONE
 
             return -ins_cost
 
