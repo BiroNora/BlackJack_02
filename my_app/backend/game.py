@@ -242,7 +242,8 @@ class Game:
                 else PhaseState.MAIN_TURN
             )
         else:
-            if curr_sum >= 21:
+            if is_double: self.target_phase = PhaseState.SPLIT_STAND_DOUBLE
+            elif curr_sum >= 21:
                 self.target_phase = (
                     PhaseState.SPLIT_STAND_DOUBLE
                     if self.player["has_hit"] == 1
@@ -250,7 +251,7 @@ class Game:
                 )
             else:
                 self.target_phase = PhaseState.SPLIT_TURN
-
+        print("253 split double target: ", self.target_phase)
 
     def stand(self):
         count = self.sum(self.dealer_unmasked["hand"], False)
@@ -341,7 +342,9 @@ class Game:
         self.players_index[old_id] = self.stated
         self.players_index[new_id_B] = self.stated
 
-        is_nat21 = len(self.player["hand"]) == 2 and self.player["sum"] == 21
+        is_nat21 = self.player["hand"] == HandState.TWENTY_ONE
+
+        self.set_split_req(1)
 
         self.target_phase = (
             PhaseState.SPLIT_ACE_TRANSIT if self.aces
@@ -349,9 +352,8 @@ class Game:
             else PhaseState.SPLIT_TURN
         )
         self.pre_phase = PhaseState.SPLIT_STAND if is_nat21 and not self.aces else PhaseState.NONE
-        print("352 tagret_phse: ", self.target_phase)
-        print("353 pre_phse: ", self.pre_phase)
-        self.set_split_req(1)
+        #print("352 tagret_phse: ", self.target_phase)
+        #print("353 pre_phse: ", self.pre_phase)
 
     def deal_card(self, hand, is_first, hand_id):
         if self.deck and is_first:
@@ -387,6 +389,8 @@ class Game:
             self.players_index[ID] = True
 
         self.target_phase = PhaseState.SPLIT_FINISH if self.split_req == 0 else PhaseState.NONE
+        #print("391 self.split_req: ", self.split_req)
+        #print("392 self.target_phase: ", self.target_phase)
 
     def find_smallest_false_stated_id(self):
         if not self.players_index:
@@ -442,7 +446,7 @@ class Game:
             PhaseState.SPLIT_NAT21_TRANSIT if state == HandState.TWENTY_ONE
             else PhaseState.SPLIT_TURN
         )
-
+        self.pre_phase = PhaseState.SPLIT_STAND if state == HandState.TWENTY_ONE else PhaseState.NONE
         return self.player
 
     def add_player_from_players(self):

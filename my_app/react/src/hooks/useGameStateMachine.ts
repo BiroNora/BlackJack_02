@@ -12,15 +12,15 @@ import {
   handleInsurance,
   handleDouble,
   handleStandAndRewards,
-  splitHand,
-  //addToPlayersListByStand,
-  //addSplitPlayerToGame,
-  //addPlayerFromPlayers,
+  handleSplitHand,
+  addToPlayersListByStand,
+  addSplitPlayerToGame,
+  addPlayerFromPlayers,
   handleSplitDouble,
-  //handleSplitStandAndRewards,
-  //setRestart,
-  //forceRestart,
-  splitHit,
+  handleSplitStandAndRewards,
+  setRestart,
+  forceRestart,
+  handleSplitHit,
   type HttpError,
 } from "../api/api-calls";
 import type {
@@ -203,7 +203,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     }
   }, [handleApiAction, transitionToState]);
 
-
   const handleOnStartNew = useCallback(() => {
     executeAsyncAction(async () => {
       // 1. Meghívjuk az API-t a diplomata (handleApiAction) segítségével
@@ -374,124 +373,110 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       transitionToState(response?.target_phase ?? "ERROR", response);
     });
   }, [executeAsyncAction, savePreActionState, handleApiAction, transitionToState]);
-  // INNEN
-  // SPLIT part
+
+  // SPLIT PART
   const handleSplitRequest = useCallback(async () => {
-    if (isProcessingRef.current) return;
-    isProcessingRef.current = true;
-    console.log("Split elindítva, sorompó LEZÁRVA (true)");
-    setIsWFSR(true);
-    dispatch({
-      type: 'SET_SHOW_INS_LOST',
-      payload: false
-    });
+    executeAsyncAction(async () => {
+      dispatch({
+        type: 'SET_SHOW_INS_LOST',
+        payload: false
+      });
 
-    savePreActionState();
+      savePreActionState();
 
-    try {
-      const data = await handleApiAction(splitHand);
-      if (data) {
-        if (!isMountedRef.current) return;
-        const response = extractGameStateData(data);
-        if (response && response.player) {
-          if (
-            response.aces === true ||
-            (response.player.hand.length === 2 && response.player.sum === 21)
-          ) {
-            console.log(
-              "Speciális eset (Ász/21), sorompó KINYITVA a tranzithoz (false)",
-            );
-            isProcessingRef.current = false;
+      const data = await handleApiAction(handleSplitHand);
 
-            const nextState =
-              response.aces === true
-                ? "SPLIT_ACE_TRANSIT"
-                : "SPLIT_NAT21_TRANSIT";
-            transitionToState(nextState, response);
-            return;
-          } else {
-            transitionToState("SPLIT_TURN", response);
-          }
+      const response = extractGameStateData(data);
+      if (!response) return;
+      dispatch({
+        type: 'SYNC_SERVER_DATA',
+        payload: response as GameStateData
+      });
+
+      /* if (response && response.player) {
+        if (
+          response.aces === true ||
+          (response.player.hand.length === 2 && response.player.sum === 21)
+        ) {
+          console.log(
+            "Speciális eset (Ász/21), sorompó KINYITVA a tranzithoz (false)",
+          );
+          isProcessingRef.current = false;
+
+          const nextState =
+            response.aces === true
+              ? "SPLIT_ACE_TRANSIT"
+              : "SPLIT_NAT21_TRANSIT";
+          transitionToState(nextState, response);
+          return;
+        } else {
+          transitionToState("SPLIT_TURN", response);
         }
-      }
-    } catch {
-      if (isMountedRef.current) {
-        transitionToState("ERROR");
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setIsWFSR(false);
-      }
-    }
-  }, [handleApiAction, savePreActionState, transitionToState]);
+      } */
+      transitionToState(response?.target_phase ?? "ERROR", response);
+    });
+  }, [executeAsyncAction, handleApiAction, savePreActionState, transitionToState]);
 
   const handleSplitHitRequest = useCallback(async () => {
-    setIsWFSR(true);
+    executeAsyncAction(async () => {
+      const data = await handleApiAction(handleSplitHit);
 
-    try {
-      const data = await handleApiAction(splitHit);
-      if (data) {
-        if (!isMountedRef.current) return;
-        const response = extractGameStateData(data);
+      const response = extractGameStateData(data);
+      if (!response) return;
 
-        if (response && response.player) {
-          const playerHandValue = response.player.sum;
-          if (playerHandValue >= 21) {
-            if (response.player?.has_hit === 1) {
-              transitionToState("SPLIT_STAND_DOUBLE", response);
-            } else {
-              transitionToState("SPLIT_STAND", response);
-            }
+      dispatch({
+        type: 'SYNC_SERVER_DATA',
+        payload: response as GameStateData
+      });
+      transitionToState(response?.target_phase ?? "ERROR", response);
+      /* if (response && response.player) {
+        const playerHandValue = response.player.sum;
+        if (playerHandValue >= 21) {
+          if (response.player?.has_hit === 1) {
+            transitionToState("SPLIT_STAND_DOUBLE", response);
           } else {
-            transitionToState("SPLIT_TURN", response);
+            transitionToState("SPLIT_STAND", response);
           }
+        } else {
+          transitionToState("SPLIT_TURN", response);
         }
-      }
-    } catch {
-      if (isMountedRef.current) {
-        transitionToState("ERROR");
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setIsWFSR(false);
-      }
-    }
-  }, [handleApiAction, transitionToState]);
+      } */
+    });
+  }, [executeAsyncAction, handleApiAction, transitionToState]);
 
   const handleSplitStandRequest = useCallback(async () => {
-    setIsWFSR(true);
+    executeAsyncAction(async () => {
 
-    if ((gameState.player.has_hit || 0) === 0) {
-      transitionToState("SPLIT_STAND_DOUBLE", gameState);
-    } else {
-      transitionToState("SPLIT_STAND", gameState);
-    }
-  }, [gameState, transitionToState]);
+      if ((gameState.player.has_hit || 0) === 0) {
+        transitionToState("SPLIT_STAND_DOUBLE", gameState);
+      } else {
+        transitionToState("SPLIT_STAND", gameState);
+      }
+    });
+  }, [executeAsyncAction, gameState, transitionToState]);
 
   const handleSplitDoubleRequest = useCallback(async () => {
-    setIsWFSR(true);
+    executeAsyncAction(async () => {
 
-    try {
       const data = await handleApiAction(handleSplitDouble);
-      if (data) {
+      const response = extractGameStateData(data);
+      if (!response) return;
+      dispatch({
+        type: 'SYNC_SERVER_DATA',
+        payload: response as GameStateData
+      });
+
+      /* if (data) {
         if (!isMountedRef.current) return;
-        const response = extractGameStateData(data);
         if (response && response.player && response.tokens) {
           transitionToState("SPLIT_STAND_DOUBLE", response);
         } else {
           transitionToState("SPLIT_TURN", gameState);
         }
-      }
-    } catch {
-      if (isMountedRef.current) {
-        transitionToState("ERROR");
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setIsWFSR(false);
-      }
-    }
-  }, [gameState, handleApiAction, transitionToState]);
+      } */
+      transitionToState(response?.target_phase ?? "ERROR", response);
+    });
+  }, [executeAsyncAction, handleApiAction, transitionToState]);
 
   // --- useEffect blokkok ---
   useEffect(() => {
@@ -502,7 +487,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
   }, []);
 
   // --- SPECIÁLIS EFFECT: Csak az app indulásakor/inicializálásakor ---
-  // --- LOADING ÁLLAPOT KEZELÉSE ---
+  // --- LOADING ---
   useEffect(() => {
     if (gameState.currentGameState !== "LOADING" || isProcessingRef.current) return;
 
@@ -642,6 +627,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     dispatch,
     setIsWFSR, state.gameState.deck_len]);
 
+  // --- MAIN_STAND ---
   useEffect(() => {
     if (gameState.currentGameState !== "MAIN_STAND" || isProcessingRef.current) return;
 
@@ -669,6 +655,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState.currentGameState, gameState.pre_phase, transitionToState]);
 
+  // --- MAIN_STAND_REWARDS_TRANSIT ---
   useEffect(() => {
     if (gameState.currentGameState !== "MAIN_STAND_REWARDS_TRANSIT" || isProcessingRef.current) return;
 
@@ -698,6 +685,338 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     };
     MainStandTransit();
   }, [gameState.currentGameState, handleApiAction, transitionToState]);
+
+  // --- SPLIT_STAND and SPLIT_STAND_DOUBLE
+  useEffect(() => {
+    const isSplitStand = gameState.currentGameState === "SPLIT_STAND" ||
+      gameState.currentGameState === "SPLIT_STAND_DOUBLE";
+
+    // Kapuőr: Ha nem releváns az állapot, vagy már fut egy folyamat, kilépünk
+    if (!isSplitStand || isProcessingRef.current) return;
+
+    isProcessingRef.current = true;
+    setIsWFSR(true);
+    console.log(`--- ${gameState.currentGameState} LOGIKA INDUL ---`);
+    const SplitStand = async () => {
+      try {
+        // --- 1. KEZDETI VÁRAKOZÁS ---
+        // Ha nem SPLIT_NAT21-ből jövünk, várunk 2 mp-et, hogy látszódjanak a lapok
+        //const initialDelay = isSplitNat21.current ? 0 : 2000;
+        const initialDelay = 2000;
+        await new Promise(resolve => {
+          timeoutIdRef.current = window.setTimeout(resolve, initialDelay);
+        });
+
+        if (!isMountedRef.current) return;
+
+        // --- 2. ADATMENTÉS (Stand) ---
+        const data = await addToPlayersListByStand();
+        if (!data || !isMountedRef.current) {
+          isProcessingRef.current = false;
+          return;
+        }
+
+        const response = extractGameStateData(data);
+        if (response?.split_req === 0) {
+          transitionToState(response?.target_phase as GameState, response);
+        } else {
+          const splitResponse = await addSplitPlayerToGame();
+          const ans = extractGameStateData(splitResponse);
+          transitionToState(ans?.target_phase as GameState, ans);
+        }
+      } catch (error) {
+        console.error("SplitStand Sequence Error:", error);
+        if (isMountedRef.current) {
+          transitionToState("ERROR");
+        }
+      } finally {
+        if (isMountedRef.current) {
+          setIsWFSR(false);
+        }
+      }
+    };
+    SplitStand();
+
+    return () => {
+      if (timeoutIdRef.current) window.clearTimeout(timeoutIdRef.current);
+    };
+  }, [gameState.currentGameState, transitionToState]);
+
+  // --- SPLIT_NAT21_TRANSIT ---
+  useEffect(() => {
+    if (gameState.currentGameState !== "SPLIT_NAT21_TRANSIT" || isProcessingRef.current) return;
+    //isSplitNat21.current = true;
+    isProcessingRef.current = true;
+    console.log("--- SPLIT_NAT21_TRANSIT INDUL ---");
+
+    const SplitNat21Transit = async () => {
+      try {
+        timeoutIdRef.current = window.setTimeout(() => {
+          if (isMountedRef.current) {
+            //const nextState = (gameState?.pre_phase as GameState) || "SPLIT_STAND";
+            isProcessingRef.current = false; // NYITÁS
+            transitionToState(gameState?.pre_phase as GameState, gameState);
+            return;
+          }
+        }, 2000);
+      } catch {
+        if (isMountedRef.current) {
+          transitionToState("ERROR");
+        }
+      }
+    };
+    SplitNat21Transit();
+
+    return () => {
+      if (timeoutIdRef.current) window.clearTimeout(timeoutIdRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState.currentGameState, transitionToState]);
+
+  // --- SPLIT_ACE_TRANSIT ---
+  useEffect(() => {
+    if (gameState.currentGameState !== "SPLIT_ACE_TRANSIT" || isProcessingRef.current) return;
+
+    isProcessingRef.current = true;
+    setIsWFSR(true);
+    console.log("--- SPLIT_ACE_TRANSIT LOGIKA INDUL ---");
+
+    const SplitAce21Transit = async () => {
+      if (!isMountedRef.current) return;
+
+      try {
+        const data = await addToPlayersListByStand();
+        if (!data || !isMountedRef.current) {
+          isProcessingRef.current = false;
+          return;
+        }
+
+        const response = extractGameStateData(data);
+
+        if (response?.split_req === 0) {
+          timeoutIdRef.current = window.setTimeout(() => {
+            if (isMountedRef.current) {
+              transitionToState(response?.target_phase as GameState, response);
+            }
+          }, 2000);
+        } else {
+          const splitResponse = await addSplitPlayerToGame();
+          const ans = extractGameStateData(splitResponse);
+
+          timeoutIdRef.current = window.setTimeout(() => {
+            if (isMountedRef.current) {
+              transitionToState(ans?.target_phase as GameState, ans);
+            }
+          }, 2000);
+        }
+      } catch (error) {
+        console.error("Transit Error:", error);
+        if (isMountedRef.current) {
+          transitionToState("ERROR");
+        }
+      } finally {
+        if (isMountedRef.current) {
+          setIsWFSR(false);
+        }
+      }
+    };
+
+    SplitAce21Transit();
+
+    return () => {
+      if (timeoutIdRef.current) window.clearTimeout(timeoutIdRef.current);
+    };
+  }, [gameState.currentGameState, transitionToState]);
+
+  // --- SPLIT_FINISH ---
+  useEffect(() => {
+    if (gameState.currentGameState === "SPLIT_FINISH") {
+      const SplitFinish = async () => {
+        if (!isMountedRef.current) return;
+
+        try {
+          savePreActionState();
+          const data = await handleSplitStandAndRewards();
+          if (data) {
+            if (!isMountedRef.current) return;
+            const response = extractGameStateData(data);
+
+            if (response) {
+              if (isMountedRef.current) {
+                transitionToState("SPLIT_FINISH_OUTCOME", response);
+              }
+            } else {
+              if (isMountedRef.current) {
+                transitionToState("ERROR");
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Hiba a SPLIT_FINISH fázisban:", e);
+          if (isMountedRef.current) {
+            transitionToState("ERROR");
+          }
+        }
+      };
+      SplitFinish();
+    }
+  }, [gameState.currentGameState, handleApiAction, savePreActionState, transitionToState]);
+
+  // --- SPLIT_FINISH_OUTCOME ---
+  useEffect(() => {
+    if (gameState.currentGameState === "SPLIT_FINISH_OUTCOME") {
+      const SplitFinishTransit = async () => {
+        if (!isMountedRef.current) return;
+
+        try {
+          if (gameState.players) {
+            if (Object.keys(gameState.players).length === 0) {
+              if (gameState.tokens === 0) {
+                if (isMountedRef.current) {
+                  transitionToState("OUT_OF_TOKENS");
+                }
+              } else {
+                timeoutIdRef.current = window.setTimeout(() => {
+                  if (isMountedRef.current) {
+                    transitionToState("BETTING", {
+                      ...initialGameState,
+                      currentGameState: "BETTING",
+                      deck_len: gameState.deck_len,
+                      tokens: gameState.tokens,
+                      bet: 0,
+                    });
+                  }
+                }, 4000);
+              }
+            } else {
+              const data = await addPlayerFromPlayers();
+              if (data) {
+                if (!isMountedRef.current) return;
+                const response = extractGameStateData(data);
+                timeoutIdRef.current = window.setTimeout(() => {
+                  if (isMountedRef.current) {
+                    transitionToState("SPLIT_FINISH", response);
+                  }
+                }, 4000);
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Hiba a SPLIT_FINISH_OUTCOME fázisban:", e);
+          if (isMountedRef.current) {
+            transitionToState("ERROR");
+          }
+        }
+      };
+      SplitFinishTransit();
+    }
+  }, [gameState.currentGameState, gameState.deck_len, gameState.players, gameState.tokens, handleApiAction, transitionToState]);
+  // --- OUT_OF_TOKENS ---
+  useEffect(() => {
+    if (gameState.currentGameState === "OUT_OF_TOKENS") {
+      const HandleOutOfTokens = async () => {
+        if (!isMountedRef.current) return;
+
+        try {
+          const data = await setRestart();
+          if (data) {
+            if (!isMountedRef.current) return;
+            const response = extractGameStateData(data);
+            if (response) {
+              timeoutIdRef.current = window.setTimeout(() => {
+                if (isMountedRef.current) {
+                  transitionToState("RESTART_GAME", response);
+                }
+              }, 5000);
+            }
+          }
+        } catch (e) {
+          console.error("Hiba a RESTART_GAME fázisban:", e);
+          if (isMountedRef.current) {
+            transitionToState("ERROR");
+          }
+        }
+      };
+      HandleOutOfTokens();
+    }
+  }, [gameState.currentGameState, handleApiAction, transitionToState]);
+
+  // --- RESTART_GAME ---
+  useEffect(() => {
+    if (gameState.currentGameState === "RESTART_GAME") {
+      const RestartGame = async () => {
+        if (!isMountedRef.current) return;
+
+        try {
+          timeoutIdRef.current = window.setTimeout(() => {
+            if (isMountedRef.current) {
+              resetGameVariables();
+              transitionToState("RELOADING", gameState);
+            }
+          }, 5000);
+        } catch (e) {
+          console.error("Hiba a RESTART_GAME fázisban:", e);
+          if (isMountedRef.current) {
+            transitionToState("ERROR");
+          }
+        }
+      };
+      RestartGame();
+    }
+  }, [gameState, gameState.currentGameState, handleApiAction, resetGameVariables, transitionToState]);
+
+  // --- ERROR ---
+  useEffect(() => {
+    if (gameState.currentGameState === "ERROR") {
+      const ForceRestart = async () => {
+        if (!isMountedRef.current) return;
+
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+
+        if (!isMountedRef.current) return;
+
+        setIsWFSR(true);
+
+        try {
+          const data = await forceRestart();
+          if (data) {
+            if (!isMountedRef.current) return;
+            const response = extractGameStateData(data);
+            if (response) {
+              transitionToState("RELOADING", response);
+            }
+          }
+        } catch (error) {
+          console.error("Hiba a kényszerített újraindítás során:", error);
+        } finally {
+          if (isMountedRef.current) {
+            setIsWFSR(false);
+          }
+        }
+      };
+      ForceRestart();
+    }
+  }, [gameState.currentGameState, handleApiAction, transitionToState]);
+
+  // --- RELOADING ---
+  useEffect(() => {
+    if (gameState.currentGameState === "RELOADING") {
+      const Reloading = async () => {
+        if (!isMountedRef.current) return;
+
+        try {
+          timeoutIdRef.current = window.setTimeout(() => {
+            if (isMountedRef.current) {
+              transitionToState("BETTING", gameState);
+            }
+          }, 5000);
+        } catch (error) {
+          console.error("Error: ", error);
+        }
+      };
+      Reloading();
+    }
+  }, [gameState, transitionToState]);
 
 
 
