@@ -678,7 +678,7 @@ def add_player_from_players(user, game):
 @login_required
 @with_game_state
 def split_hit(user, game):
-    game.hit()
+    game.hit(False)
 
     return (
         jsonify(
@@ -707,7 +707,7 @@ def split_double_request(user, game):
 
     amount_deducted = game.double_request()
     user.tokens -= amount_deducted
-    game.hit()
+    game.hit(True)
 
     return (
         jsonify(

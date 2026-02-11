@@ -93,13 +93,13 @@ export async function handleStandAndRewards() {
   return data;
 }
 
-export async function splitHand() {
+export async function handleSplitHand() {
   const data = await callApiEndpoint("/api/split_request", "POST");
 
   return data;
 }
 
-export async function splitHit() {
+export async function handleSplitHit() {
   const data = await callApiEndpoint("/api/split_hit", "POST");
 
   return data;
