@@ -246,7 +246,7 @@ class Game:
             elif curr_sum >= 21:
                 self.target_phase = (
                     PhaseState.SPLIT_STAND_DOUBLE
-                    if self.player["has_hit"] == 1
+                    if self.player.get("has_hit") == 1
                     else PhaseState.SPLIT_STAND
                 )
             else:

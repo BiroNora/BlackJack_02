@@ -672,6 +672,12 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           isProcessingRef.current = false;
           return;
         }
+
+        dispatch({
+          type: 'SYNC_SERVER_DATA',
+          payload: response as GameStateData
+        });
+
         timeoutIdRef.current = window.setTimeout(() => {
           if (isMountedRef.current) {
             isProcessingRef.current = false; // NYITÁS
@@ -717,10 +723,18 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         }
 
         const response = extractGameStateData(data);
+        dispatch({
+          type: 'SYNC_SERVER_DATA',
+          payload: response as GameStateData
+        });
         if (response?.split_req === 0) {
           transitionToState(response?.target_phase as GameState, response);
         } else {
           const splitResponse = await addSplitPlayerToGame();
+          dispatch({
+            type: 'SYNC_SERVER_DATA',
+            payload: splitResponse as GameStateData
+          });
           const ans = extractGameStateData(splitResponse);
           transitionToState(ans?.target_phase as GameState, ans);
         }
@@ -792,6 +806,10 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         }
 
         const response = extractGameStateData(data);
+        dispatch({
+          type: 'SYNC_SERVER_DATA',
+          payload: response as GameStateData
+        });
 
         if (response?.split_req === 0) {
           timeoutIdRef.current = window.setTimeout(() => {
@@ -801,6 +819,10 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           }, 2000);
         } else {
           const splitResponse = await addSplitPlayerToGame();
+          dispatch({
+            type: 'SYNC_SERVER_DATA',
+            payload: splitResponse as GameStateData
+          });
           const ans = extractGameStateData(splitResponse);
 
           timeoutIdRef.current = window.setTimeout(() => {
@@ -820,7 +842,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         }
       }
     };
-
     SplitAce21Transit();
 
     return () => {
@@ -840,6 +861,10 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           if (data) {
             if (!isMountedRef.current) return;
             const response = extractGameStateData(data);
+            dispatch({
+              type: 'SYNC_SERVER_DATA',
+              payload: response as GameStateData
+            });
 
             if (response) {
               if (isMountedRef.current) {
@@ -893,6 +918,10 @@ export function useGameStateMachine(): GameStateMachineHookResult {
               if (data) {
                 if (!isMountedRef.current) return;
                 const response = extractGameStateData(data);
+                dispatch({
+                  type: 'SYNC_SERVER_DATA',
+                  payload: response as GameStateData
+                });
                 timeoutIdRef.current = window.setTimeout(() => {
                   if (isMountedRef.current) {
                     transitionToState("SPLIT_FINISH", response);
@@ -911,6 +940,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       SplitFinishTransit();
     }
   }, [gameState.currentGameState, gameState.deck_len, gameState.players, gameState.tokens, handleApiAction, transitionToState]);
+
   // --- OUT_OF_TOKENS ---
   useEffect(() => {
     if (gameState.currentGameState === "OUT_OF_TOKENS") {
@@ -922,6 +952,10 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           if (data) {
             if (!isMountedRef.current) return;
             const response = extractGameStateData(data);
+            dispatch({
+              type: 'SYNC_SERVER_DATA',
+              payload: response as GameStateData
+            });
             if (response) {
               timeoutIdRef.current = window.setTimeout(() => {
                 if (isMountedRef.current) {
@@ -1017,9 +1051,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       Reloading();
     }
   }, [gameState, transitionToState]);
-
-
-
 
   return {
     gameState,
