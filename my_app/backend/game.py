@@ -71,7 +71,6 @@ class Game:
         self.target_phase = PhaseState.LOADING
         self.pre_phase = PhaseState.NONE
         self.is_session_init = False
-        self.has_split = False
 
     def initialize_new_round(self):
         self.clear_up()
@@ -225,7 +224,7 @@ class Game:
 
         return self.winner
 
-    def hit(self, is_double):
+    def hit(self, is_double, has_split):
         if not self.is_round_active:
             return
         new_card = self.deck.pop(0)
@@ -235,14 +234,15 @@ class Game:
         curr_sum = self.sum(self.player["hand"], True)
         self.player["sum"] = curr_sum
 
-        if not self.has_split:
+        if not has_split:
             self.target_phase = (
                 PhaseState.MAIN_STAND_REWARDS_TRANSIT
                 if curr_sum >= 21 or is_double
                 else PhaseState.MAIN_TURN
             )
         else:
-            if is_double: self.target_phase = PhaseState.SPLIT_STAND_DOUBLE
+            if is_double:
+                self.target_phase = PhaseState.SPLIT_STAND_DOUBLE
             elif curr_sum >= 21:
                 self.target_phase = (
                     PhaseState.SPLIT_STAND_DOUBLE
@@ -251,9 +251,8 @@ class Game:
                 )
             else:
                 self.target_phase = PhaseState.SPLIT_TURN
-        print("253 split double target: ", self.target_phase)
-
-    def stand(self):
+        
+    def stand(self, has_split):
         count = self.sum(self.dealer_unmasked["hand"], False)
         if self.sum(self.player["hand"], True) <= 21:
             while count < 17:
@@ -267,7 +266,10 @@ class Game:
         self.player["hand_state"] = self.hand_state(self.player["sum"], True)
         self.winner = NONE
         self.winner = self.winner_state()
-        self.target_phase = PhaseState.MAIN_STAND
+
+        self.target_phase = (
+            PhaseState.MAIN_STAND if not has_split else PhaseState.SPLIT_FINISH_OUTCOME
+        )
 
     def rewards(self) -> int:
         bet = self.player["bet"]
@@ -325,7 +327,6 @@ class Game:
         if not self.can_split(self.player["hand"]) or len(self.players) > 3:
             return
 
-        self.has_split = True
         old_id = self.player["id"]
         card_to_split = self.player["hand"].pop(0)
         new_hand1 = [card_to_split]
@@ -347,13 +348,13 @@ class Game:
         self.set_split_req(1)
 
         self.target_phase = (
-            PhaseState.SPLIT_ACE_TRANSIT if self.aces
-            else PhaseState.SPLIT_NAT21_TRANSIT if is_nat21
-            else PhaseState.SPLIT_TURN
+            PhaseState.SPLIT_ACE_TRANSIT
+            if self.aces
+            else PhaseState.SPLIT_NAT21_TRANSIT if is_nat21 else PhaseState.SPLIT_TURN
         )
-        self.pre_phase = PhaseState.SPLIT_STAND if is_nat21 and not self.aces else PhaseState.NONE
-        #print("352 tagret_phse: ", self.target_phase)
-        #print("353 pre_phse: ", self.pre_phase)
+        self.pre_phase = (
+            PhaseState.SPLIT_STAND if is_nat21 and not self.aces else PhaseState.NONE
+        )
 
     def deal_card(self, hand, is_first, hand_id):
         if self.deck and is_first:
@@ -388,9 +389,9 @@ class Game:
             ID = self.player["id"]
             self.players_index[ID] = True
 
-        self.target_phase = PhaseState.SPLIT_FINISH if self.split_req == 0 else PhaseState.NONE
-        #print("391 self.split_req: ", self.split_req)
-        #print("392 self.target_phase: ", self.target_phase)
+        self.target_phase = (
+            PhaseState.SPLIT_FINISH if self.split_req == 0 else PhaseState.NONE
+        )
 
     def find_smallest_false_stated_id(self):
         if not self.players_index:
@@ -443,10 +444,13 @@ class Game:
         self.player["can_split"] = can_split
 
         self.target_phase = (
-            PhaseState.SPLIT_NAT21_TRANSIT if state == HandState.TWENTY_ONE
+            PhaseState.SPLIT_NAT21_TRANSIT
+            if state == HandState.TWENTY_ONE
             else PhaseState.SPLIT_TURN
         )
-        self.pre_phase = PhaseState.SPLIT_STAND if state == HandState.TWENTY_ONE else PhaseState.NONE
+        self.pre_phase = (
+            PhaseState.SPLIT_STAND if state == HandState.TWENTY_ONE else PhaseState.NONE
+        )
         return self.player
 
     def add_player_from_players(self):
@@ -455,6 +459,7 @@ class Game:
 
         first_id = list(self.players.keys())[0]
         self.player = self.players.pop(first_id)
+        self.target_phase = PhaseState.SPLIT_FINISH
 
         return self.player
 
@@ -524,7 +529,6 @@ class Game:
         self.has_rewards = False
         self.target_phase = PhaseState.BETTING
         self.pre_phase = PhaseState.NONE
-        self.has_split = False
 
     def restart_game(self):
         self.__init__()
@@ -651,7 +655,6 @@ class Game:
             "target_phase": self.get_target_phase().value,
             "pre_phase": self.get_pre_phase().value,
             "is_session_init": self.is_session_init,
-            "has_split": self.has_split,
         }
 
     @classmethod
@@ -687,6 +690,5 @@ class Game:
         if not raw_pre:
             game.pre_phase = game.get_pre_phase()
         game.is_session_init = data.get("is_session_init", False)
-        game.has_split = data.get("has_split")
 
         return game

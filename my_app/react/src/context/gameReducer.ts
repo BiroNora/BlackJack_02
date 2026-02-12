@@ -22,9 +22,22 @@ export type GameAction =
 export const initialGameDataState: GameDataState = {
   gameState: {
     currentGameState: 'LOADING',
+    player: { id: "NONE", hand: [], sum: 0, hand_state: 0, can_split: false, stated: false, bet: 0, has_hit: 0 },
+    dealer_masked: { hand: [], sum: 0, can_insure: false, nat_21: 0 },
+    dealer_unmasked: { hand: [], sum: 0, hand_state: 0, natural_21: 0 },
+    aces: false,
+    natural_21: 0,
+    winner: 0,
+    players: {},
+    split_req: 0,
+    deck_len: 104,
     tokens: 0,
     bet: 0,
-    // ... ide kell az összes többi mező a GameStateData-ból (üresen vagy null-al)
+    bet_list: [],
+    is_round_active: false,
+    has_rewards: false,
+    target_phase: "LOADING",
+    pre_phase: "BETTING",
   } as GameStateData,
   preRewardBet: null,
   preRewardTokens: null,
@@ -38,7 +51,10 @@ export function gameReducer(state: GameDataState, action: GameAction): GameDataS
     case 'SYNC_SERVER_DATA':
       return {
         ...state,
-        gameState: action.payload,
+        gameState: {
+          ...state.gameState, // Megtartjuk a meglévő mezőket (pl. dealer_masked, tokens)
+          ...action.payload,   // Felülírjuk azokkal, amik a szervertől jöttek
+        },
       };
     case 'SET_UI_PHASE':
       return {

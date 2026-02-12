@@ -32,56 +32,13 @@ import type {
 import { extractGameStateData } from "../utilities/utils";
 import { gameReducer, initialGameDataState } from "../context/gameReducer";
 
-// Kezdeti állapot a játékgép számára
-const initialGameState: GameStateData = {
-  currentGameState: "LOADING",
-  player: {
-    id: "NONE",
-    hand: [],
-    sum: 0,
-    hand_state: 0,
-    can_split: false,
-    stated: false,
-    bet: 0,
-    has_hit: 0,
-  },
-  dealer_masked: {
-    hand: [],
-    sum: 0,
-    can_insure: false,
-    nat_21: 0,
-  },
-  dealer_unmasked: {
-    hand: [],
-    sum: 0,
-    hand_state: 0,
-    natural_21: 0,
-  },
-  aces: false,
-  natural_21: 0,
-  winner: 0,
-  players: {},
-  split_req: 0,
-  deck_len: 104,
-  tokens: 0,
-  bet: 0,
-  bet_list: [],
-  is_round_active: false,
-  has_rewards: false,
-  target_phase: "LOADING",
-  pre_phase: "INIT_GAME",
-};
-
 // A hook visszatérési típusa most inline van deklarálva, nincs külön 'type' definíció.
 export function useGameStateMachine(): GameStateMachineHookResult {
-  const [gameState, setLocalGameState] =
-    useState<GameStateData>(initialGameState);
   // isWaitingForServerResponse = isWFSR  (button disabling)
   // setIsWaitingForServerResponse = setIsWFSR
   const [isWFSR, setIsWFSR] = useState(false);
   const [state, dispatch] = useReducer(gameReducer, initialGameDataState);
 
-  //const isSplitNat21 = useRef(false);
   const timeoutIdRef = useRef<number | null>(null);
   // Az isMounted ref-et is használjuk a komponens mountolt állapotának követésére
   // Ennek típusa boolean, a useRef pedig automatikusan kikövetkezteti.
@@ -90,45 +47,46 @@ export function useGameStateMachine(): GameStateMachineHookResult {
   const isProcessingRef = useRef(false);
   const isAppInitializedRef = useRef(false);
 
-  // Állapotváltó funkció
+  // Állapotváltó funkció a logolással és Reducer szinkronizációval
   const transitionToState = useCallback(
     (newState: GameState, newData?: Partial<GameStateData>) => {
       isProcessingRef.current = false;
-      setLocalGameState((prev) => {
-        const updatedState = {
-          ...prev,
-          ...newData,
+
+      // Csak a Reducert frissítjük
+      dispatch({
+        type: 'SYNC_SERVER_DATA',
+        payload: {
+          ...(newData || {}),
           currentGameState: newState,
-        };
-        //console.log(
-        //  `>>> Állapotváltás: ${prev.currentGameState} -> ${newState}`,
-        //  updatedState
-        //);
-        return updatedState;
+        } as GameStateData
       });
+
+      console.log(`>>> Állapotváltás: -> ${newState}`);
     },
-    [],
+    [dispatch]
   );
 
   const savePreActionState = useCallback(() => {
-    if (gameState) {
-      // Használd a meglévő Reducer akciódat!
+    // A 'state' a useReducer-ből jön, ez mindig a legfrissebb adatokat tartalmazza
+    const currentData = state.gameState;
+
+    if (currentData) {
       dispatch({
         type: 'SET_BET_SNAPSHOTS',
         payload: {
-          bet: gameState.player.bet,
-          tokens: gameState.tokens
+          bet: currentData.player.bet,
+          tokens: currentData.tokens
         }
       });
     }
-  }, [gameState, dispatch]);
+  }, [state.gameState, dispatch]);
 
   const resetGameVariables = useCallback(() => {
     dispatch({ type: 'RESET_TURN_VARIABLES' });
-
-    // Az isWFSR-t (Wait For Server Response) érdemes lehet megtartani useState-ként,
-    // ha az csak a gombok tiltására szolgál és nem része a globális játékállapotnak.
     setIsWFSR(false);
+    isProcessingRef.current = false;
+
+    console.log("--- Játék változók alaphelyzetbe állítva ---");
   }, [dispatch]);
 
   const executeAsyncAction = useCallback(async (actionFn: () => Promise<void>) => {
@@ -213,20 +171,15 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       const response = extractGameStateData(data);
       if (!response) return;
 
-      // 3. Szinkronizálunk
-      dispatch({
-        type: 'SYNC_SERVER_DATA',
-        payload: response as GameStateData
-      });
-
       // 4. Átlépünk az új fázisba (SHUFFLING vagy BETTING a szerver döntése alapján)
       transitionToState(response.target_phase ?? "ERROR", response);
     });
-  }, [executeAsyncAction, handleApiAction, transitionToState, dispatch]);
+  }, [executeAsyncAction, handleApiAction, transitionToState]);
 
   const handlePlaceBet = useCallback(
     async (amount: number) => {
-      if (gameState.tokens < amount || amount <= 0) return;
+      const currentTokens = state.gameState.tokens;
+      if (currentTokens < amount || amount <= 0) return;
 
       executeAsyncAction(async () => {
         const data = await handleApiAction(() => setBet(amount));
@@ -234,20 +187,16 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         const response = extractGameStateData(data);
         if (!response) return;
 
-        dispatch({
-          type: 'SYNC_SERVER_DATA',
-          payload: response as GameStateData
-        });
-
         transitionToState(response.target_phase ?? "ERROR", response);
       });
     },
-    [gameState.tokens, executeAsyncAction, handleApiAction, transitionToState, dispatch]
+    [state.gameState.tokens, executeAsyncAction, handleApiAction, transitionToState]
   );
 
   const handleRetakeBet = useCallback(() => {
     // Guard clause: csak akkor indítunk, ha van mit visszavenni
-    if (!gameState.bet_list || gameState.bet_list.length === 0) return;
+    const currentBetList = state.gameState.bet_list;
+    if (!currentBetList || currentBetList.length === 0) return;
 
     executeAsyncAction(async () => {
       const data = await handleApiAction(takeBackDeal);
@@ -255,14 +204,9 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       const response = extractGameStateData(data);
       if (!response) return;
 
-      dispatch({
-        type: 'SYNC_SERVER_DATA',
-        payload: response as GameStateData
-      });
-
       transitionToState(response.target_phase ?? "ERROR", response);
     });
-  }, [gameState.bet_list, executeAsyncAction, handleApiAction, transitionToState, dispatch]);
+  }, [state.gameState.bet_list, executeAsyncAction, handleApiAction, transitionToState]);
 
   const handleStartGame = useCallback(async () => {
     const response = state.gameState;
@@ -293,11 +237,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
       if (!response) return;
 
-      dispatch({
-        type: 'SYNC_SERVER_DATA',
-        payload: response as GameStateData
-      });
-
       transitionToState(response.target_phase ?? "ERROR", response);
     });
   }, [executeAsyncAction, savePreActionState, handleApiAction, transitionToState]);
@@ -311,10 +250,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
       const response = extractGameStateData(data);
       if (!response) return;
-      dispatch({
-        type: 'SYNC_SERVER_DATA',
-        payload: response as GameStateData
-      });
 
       transitionToState(response.target_phase ?? "ERROR", response);
     });
@@ -331,10 +266,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
       const response = extractGameStateData(data);
       if (!response) return;
-      dispatch({
-        type: 'SYNC_SERVER_DATA',
-        payload: response as GameStateData
-      });
 
       if (response.player && response.tokens !== undefined) {
         dispatch({
@@ -345,8 +276,8 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           }
         });
       }
-
-      transitionToState(response?.target_phase ?? "ERROR", response);
+      console.log("309 response?.target_phase as GameState: ", response?.target_phase as GameState)
+      transitionToState(response?.target_phase as GameState, response);
     });
   }, [executeAsyncAction, handleApiAction, transitionToState]);
 
@@ -362,15 +293,10 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       const response = extractGameStateData(data);
       if (!response) return;
 
-      dispatch({
-        type: 'SYNC_SERVER_DATA',
-        payload: response as GameStateData
-      });
-
       if (response.target_phase === "MAIN_TURN") {
         dispatch({ type: 'SET_SHOW_INS_LOST', payload: true });
       }
-      transitionToState(response?.target_phase ?? "ERROR", response);
+      transitionToState(response?.target_phase as GameState, response);
     });
   }, [executeAsyncAction, savePreActionState, handleApiAction, transitionToState]);
 
@@ -388,10 +314,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
       const response = extractGameStateData(data);
       if (!response) return;
-      dispatch({
-        type: 'SYNC_SERVER_DATA',
-        payload: response as GameStateData
-      });
 
       /* if (response && response.player) {
         if (
@@ -413,7 +335,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           transitionToState("SPLIT_TURN", response);
         }
       } */
-      transitionToState(response?.target_phase ?? "ERROR", response);
+      transitionToState(response?.target_phase as GameState, response);
     });
   }, [executeAsyncAction, handleApiAction, savePreActionState, transitionToState]);
 
@@ -424,11 +346,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       const response = extractGameStateData(data);
       if (!response) return;
 
-      dispatch({
-        type: 'SYNC_SERVER_DATA',
-        payload: response as GameStateData
-      });
-      transitionToState(response?.target_phase ?? "ERROR", response);
+      transitionToState(response?.target_phase as GameState, response);
       /* if (response && response.player) {
         const playerHandValue = response.player.sum;
         if (playerHandValue >= 21) {
@@ -447,13 +365,15 @@ export function useGameStateMachine(): GameStateMachineHookResult {
   const handleSplitStandRequest = useCallback(async () => {
     executeAsyncAction(async () => {
 
-      if ((gameState.player.has_hit || 0) === 0) {
-        transitionToState("SPLIT_STAND_DOUBLE", gameState);
+      const hasHit = state.gameState.player.has_hit || 0;
+
+      if (hasHit === 0) {
+        transitionToState("SPLIT_STAND_DOUBLE", state.gameState);
       } else {
-        transitionToState("SPLIT_STAND", gameState);
+        transitionToState("SPLIT_STAND", state.gameState);
       }
     });
-  }, [executeAsyncAction, gameState, transitionToState]);
+  }, [executeAsyncAction, state.gameState, transitionToState]);
 
   const handleSplitDoubleRequest = useCallback(async () => {
     executeAsyncAction(async () => {
@@ -461,10 +381,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       const data = await handleApiAction(handleSplitDouble);
       const response = extractGameStateData(data);
       if (!response) return;
-      dispatch({
-        type: 'SYNC_SERVER_DATA',
-        payload: response as GameStateData
-      });
 
       /* if (data) {
         if (!isMountedRef.current) return;
@@ -474,7 +390,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           transitionToState("SPLIT_TURN", gameState);
         }
       } */
-      transitionToState(response?.target_phase ?? "ERROR", response);
+      transitionToState(response?.target_phase as GameState, response);
     });
   }, [executeAsyncAction, handleApiAction, transitionToState]);
 
@@ -489,9 +405,10 @@ export function useGameStateMachine(): GameStateMachineHookResult {
   // --- SPECIÁLIS EFFECT: Csak az app indulásakor/inicializálásakor ---
   // --- LOADING ---
   useEffect(() => {
-    if (gameState.currentGameState !== "LOADING" || isProcessingRef.current) return;
+    // 1. Kapuőr: Csak ha LOADING fázisban vagyunk és nem dolgozunk éppen
+    if (state.gameState.currentGameState !== "LOADING" || isProcessingRef.current) return;
 
-    // Dupla védelem: ha már inicializáltunk, nem futunk neki még egyszer
+    // 2. Egyszeri futás védelme
     if (isAppInitializedRef.current) return;
     isAppInitializedRef.current = true;
 
@@ -512,18 +429,16 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
         const { tokens, game_state } = initData as SessionInitResponse;
 
-        dispatch({
-          type: 'SYNC_SERVER_DATA',
-          payload: { tokens, ...game_state } as GameStateData
-        });
-
-        dispatch({ type: 'SET_DECK_LEN', payload: game_state.deck_len });
-
-        // FONTOS: Itt manuálisan jelezzük a gépnek, hogy felszabadultunk
-        isProcessingRef.current = false;
+        // FONTOS: Nem kell külön dispatch a SYNC-re, ha a transitionToState-et okosan használod!
+        // VAGY: Ha külön akarod választani az adatfrissítést a fázisváltástól:
 
         const nextPhase = game_state.target_phase as GameState;
+
+        // Itt egyetlen hívással lerendezzük az adatot és a fázisváltást is a Reducerben
         transitionToState(nextPhase, { tokens, ...game_state });
+
+        // Ezután a state.gameState.currentGameState megváltozik,
+        // és ez az effekt már nem fog újra belépni a legfelső IF miatt.
 
       } catch (error) {
         console.error("Initialization Error: ", error);
@@ -533,35 +448,30 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     };
 
     initializeApplicationOnLoad();
-  }, [gameState.currentGameState, transitionToState, handleApiAction, dispatch]);
+  }, [state.gameState.currentGameState, transitionToState, handleApiAction]);
 
   // --- SHUFFLING ---
   useEffect(() => {
-    if (gameState.currentGameState !== "SHUFFLING" || isProcessingRef.current) return;
+    if (state.gameState.currentGameState !== "SHUFFLING" || isProcessingRef.current) return;
 
     isProcessingRef.current = true;
     console.log("--- SHUFFLING INDUL ---");
 
     const shufflingAct = async () => {
       try {
-        // 1. API hívás (ha hiba van, a catch-re ugrik)
         const data = await handleApiAction(getShuffling);
-
-        // 2. Ide már csak akkor jutunk, ha van adat
         const response = extractGameStateData(data);
 
         if (response) {
-          dispatch({ type: 'SYNC_SERVER_DATA', payload: response as GameStateData });
+
+          // A setTimeout ID-t elmentjük, hogy törölhessük ha kell
+          timeoutIdRef.current = window.setTimeout(() => {
+            if (isMountedRef.current) {
+              isProcessingRef.current = false;
+              transitionToState(response?.target_phase as GameState, response);
+            }
+          }, 1000);
         }
-
-        // A setTimeout ID-t elmentjük, hogy törölhessük ha kell
-        timeoutIdRef.current = window.setTimeout(() => {
-          if (isMountedRef.current) {
-            isProcessingRef.current = false;
-            transitionToState(response?.target_phase as GameState, response);
-          }
-        }, 1000);
-
       } catch {
         if (isMountedRef.current) {
           isProcessingRef.current = false; // Fontos felszabadítani hiba esetén is!
@@ -577,11 +487,11 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         window.clearTimeout(timeoutIdRef.current);
       }
     };
-  }, [gameState.currentGameState, handleApiAction, transitionToState, dispatch]);
+  }, [handleApiAction, state.gameState.currentGameState, transitionToState]);
 
   // --- INIT_GAME ---
   useEffect(() => {
-    if (gameState.currentGameState !== "INIT_GAME" || isProcessingRef.current) return;
+    if (state.gameState.currentGameState !== "INIT_GAME" || isProcessingRef.current) return;
 
     isProcessingRef.current = true;
     console.log("--- INIT_GAME BLOKK INDUL ---");
@@ -595,22 +505,15 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         dispatch({ type: 'SET_DECK_LEN', payload: currentDeckLen });
 
         const data = await handleApiAction(startGame);
-
-
         const response = extractGameStateData(data);
-
+        console.log("INIT response: ", response)
         if (!response || !isMountedRef.current) {
           isProcessingRef.current = false;
           return;
         }
-        dispatch({ type: 'SYNC_SERVER_DATA', payload: response as GameStateData });
+        //isProcessingRef.current = false;
 
-        isProcessingRef.current = false;
-
-        const nextPhase = response.pre_phase as GameState;
-        transitionToState(nextPhase, response);
-
-
+        transitionToState(response?.pre_phase as GameState, response);
       } catch (error) {
         console.error("Init Game hiba:", error);
         isProcessingRef.current = false;
@@ -620,16 +523,16 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     };
 
     initGameAct();
-  }, [gameState.currentGameState,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.gameState.currentGameState,
     transitionToState,
     handleApiAction,
     resetGameVariables,
-    dispatch,
-    setIsWFSR, state.gameState.deck_len]);
+    setIsWFSR]);
 
   // --- MAIN_STAND ---
   useEffect(() => {
-    if (gameState.currentGameState !== "MAIN_STAND" || isProcessingRef.current) return;
+    if (state.gameState.currentGameState !== "MAIN_STAND" || isProcessingRef.current) return;
 
     isProcessingRef.current = true;
     console.log("--- MAIN_STAND INDUL ---");
@@ -641,11 +544,11 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         // hogy a következő fázis (pl. BETTING) tiszta lappal indulhasson.
         isProcessingRef.current = false;
 
-        const rawPrePhase = gameState.pre_phase;
+        const rawPrePhase = state.gameState.pre_phase;
         const nextPhase = (rawPrePhase as string === "NONE" || !rawPrePhase)
           ? "BETTING"
           : (rawPrePhase as GameState);
-        transitionToState(nextPhase, gameState);
+        transitionToState(nextPhase, state.gameState);
       }
     }, 4000);
 
@@ -653,19 +556,17 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameState.currentGameState, gameState.pre_phase, transitionToState]);
+  }, [state.gameState.currentGameState, state.gameState.pre_phase, transitionToState]);
 
   // --- MAIN_STAND_REWARDS_TRANSIT ---
   useEffect(() => {
-    if (gameState.currentGameState !== "MAIN_STAND_REWARDS_TRANSIT" || isProcessingRef.current) return;
-
+    if (state.gameState.currentGameState !== "MAIN_STAND_REWARDS_TRANSIT" || isProcessingRef.current) return;
     isProcessingRef.current = true;
     console.log("--- MAIN_STAND_REWARDS_TRANSIT INDUL ---");
 
     const MainStandTransit = async () => {
       try {
         const data = await handleApiAction(handleStandAndRewards);
-
         const response = extractGameStateData(data);
 
         if (!response || !isMountedRef.current) {
@@ -673,14 +574,8 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           return;
         }
 
-        dispatch({
-          type: 'SYNC_SERVER_DATA',
-          payload: response as GameStateData
-        });
-
         timeoutIdRef.current = window.setTimeout(() => {
           if (isMountedRef.current) {
-            isProcessingRef.current = false; // NYITÁS
             transitionToState(response?.target_phase as GameState, response);
           }
         }, 200);
@@ -690,52 +585,47 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       }
     };
     MainStandTransit();
-  }, [gameState.currentGameState, handleApiAction, transitionToState]);
+  }, [state.gameState.currentGameState, handleApiAction, transitionToState]);
 
   // --- SPLIT_STAND and SPLIT_STAND_DOUBLE
   useEffect(() => {
-    const isSplitStand = gameState.currentGameState === "SPLIT_STAND" ||
-      gameState.currentGameState === "SPLIT_STAND_DOUBLE";
+    const isSplitStand = state.gameState.currentGameState === "SPLIT_STAND" ||
+      state.gameState.currentGameState === "SPLIT_STAND_DOUBLE";
 
     // Kapuőr: Ha nem releváns az állapot, vagy már fut egy folyamat, kilépünk
     if (!isSplitStand || isProcessingRef.current) return;
 
     isProcessingRef.current = true;
     setIsWFSR(true);
-    console.log(`--- ${gameState.currentGameState} LOGIKA INDUL ---`);
+    console.log(`--- ${state.gameState.currentGameState} LOGIKA INDUL ---`);
     const SplitStand = async () => {
       try {
-        // --- 1. KEZDETI VÁRAKOZÁS ---
-        // Ha nem SPLIT_NAT21-ből jövünk, várunk 2 mp-et, hogy látszódjanak a lapok
-        //const initialDelay = isSplitNat21.current ? 0 : 2000;
-        const initialDelay = 2000;
         await new Promise(resolve => {
-          timeoutIdRef.current = window.setTimeout(resolve, initialDelay);
+          timeoutIdRef.current = window.setTimeout(resolve, 2000);
         });
 
         if (!isMountedRef.current) return;
 
         // --- 2. ADATMENTÉS (Stand) ---
-        const data = await addToPlayersListByStand();
-        if (!data || !isMountedRef.current) {
+        const data = await handleApiAction(addToPlayersListByStand);
+        const response = extractGameStateData(data);
+
+        if (!response || !isMountedRef.current) {
           isProcessingRef.current = false;
           return;
         }
 
-        const response = extractGameStateData(data);
-        dispatch({
-          type: 'SYNC_SERVER_DATA',
-          payload: response as GameStateData
-        });
         if (response?.split_req === 0) {
           transitionToState(response?.target_phase as GameState, response);
         } else {
-          const splitResponse = await addSplitPlayerToGame();
-          dispatch({
-            type: 'SYNC_SERVER_DATA',
-            payload: splitResponse as GameStateData
-          });
+          const splitResponse = await handleApiAction(addSplitPlayerToGame);
           const ans = extractGameStateData(splitResponse);
+
+          if (!ans || !isMountedRef.current) {
+            isProcessingRef.current = false;
+            return;
+          }
+
           transitionToState(ans?.target_phase as GameState, ans);
         }
       } catch (error) {
@@ -754,13 +644,14 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     return () => {
       if (timeoutIdRef.current) window.clearTimeout(timeoutIdRef.current);
     };
-  }, [gameState.currentGameState, transitionToState]);
+  }, [state.gameState.currentGameState, transitionToState, handleApiAction]);
 
   // --- SPLIT_NAT21_TRANSIT ---
   useEffect(() => {
-    if (gameState.currentGameState !== "SPLIT_NAT21_TRANSIT" || isProcessingRef.current) return;
+    if (state.gameState.currentGameState !== "SPLIT_NAT21_TRANSIT" || isProcessingRef.current) return;
     //isSplitNat21.current = true;
     isProcessingRef.current = true;
+    setIsWFSR(true);
     console.log("--- SPLIT_NAT21_TRANSIT INDUL ---");
 
     const SplitNat21Transit = async () => {
@@ -768,9 +659,8 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         timeoutIdRef.current = window.setTimeout(() => {
           if (isMountedRef.current) {
             //const nextState = (gameState?.pre_phase as GameState) || "SPLIT_STAND";
-            isProcessingRef.current = false; // NYITÁS
-            transitionToState(gameState?.pre_phase as GameState, gameState);
-            return;
+            transitionToState(state.gameState?.pre_phase as GameState, state.gameState);
+            setIsWFSR(false);
           }
         }, 2000);
       } catch {
@@ -784,12 +674,13 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     return () => {
       if (timeoutIdRef.current) window.clearTimeout(timeoutIdRef.current);
     };
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameState.currentGameState, transitionToState]);
+  }, [state.gameState.currentGameState, state.gameState.pre_phase, transitionToState]);
 
   // --- SPLIT_ACE_TRANSIT ---
   useEffect(() => {
-    if (gameState.currentGameState !== "SPLIT_ACE_TRANSIT" || isProcessingRef.current) return;
+    if (state.gameState.currentGameState !== "SPLIT_ACE_TRANSIT" || isProcessingRef.current) return;
 
     isProcessingRef.current = true;
     setIsWFSR(true);
@@ -799,17 +690,13 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       if (!isMountedRef.current) return;
 
       try {
-        const data = await addToPlayersListByStand();
+        const data = await handleApiAction(addToPlayersListByStand);
         if (!data || !isMountedRef.current) {
           isProcessingRef.current = false;
           return;
         }
 
         const response = extractGameStateData(data);
-        dispatch({
-          type: 'SYNC_SERVER_DATA',
-          payload: response as GameStateData
-        });
 
         if (response?.split_req === 0) {
           timeoutIdRef.current = window.setTimeout(() => {
@@ -818,11 +705,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
             }
           }, 2000);
         } else {
-          const splitResponse = await addSplitPlayerToGame();
-          dispatch({
-            type: 'SYNC_SERVER_DATA',
-            payload: splitResponse as GameStateData
-          });
+          const splitResponse = await handleApiAction(addSplitPlayerToGame);
           const ans = extractGameStateData(splitResponse);
 
           timeoutIdRef.current = window.setTimeout(() => {
@@ -847,115 +730,137 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     return () => {
       if (timeoutIdRef.current) window.clearTimeout(timeoutIdRef.current);
     };
-  }, [gameState.currentGameState, transitionToState]);
+  }, [handleApiAction, state.gameState.currentGameState, transitionToState]);
 
   // --- SPLIT_FINISH ---
   useEffect(() => {
-    if (gameState.currentGameState === "SPLIT_FINISH") {
-      const SplitFinish = async () => {
-        if (!isMountedRef.current) return;
+    if (state.gameState.currentGameState !== "SPLIT_FINISH" || isProcessingRef.current) return;
 
-        try {
-          savePreActionState();
-          const data = await handleSplitStandAndRewards();
-          if (data) {
-            if (!isMountedRef.current) return;
-            const response = extractGameStateData(data);
-            dispatch({
-              type: 'SYNC_SERVER_DATA',
-              payload: response as GameStateData
-            });
+    isProcessingRef.current = true;
+    setIsWFSR(true);
 
-            if (response) {
-              if (isMountedRef.current) {
-                transitionToState("SPLIT_FINISH_OUTCOME", response);
-              }
-            } else {
-              if (isMountedRef.current) {
-                transitionToState("ERROR");
-              }
-            }
-          }
-        } catch (e) {
-          console.error("Hiba a SPLIT_FINISH fázisban:", e);
-          if (isMountedRef.current) {
-            transitionToState("ERROR");
-          }
+    const SplitFinish = async () => {
+      try {
+        savePreActionState();
+        const data = await handleApiAction(handleSplitStandAndRewards);
+
+        if (!isMountedRef.current || !data) {
+          isProcessingRef.current = false;
+          return;
         }
-      };
-      SplitFinish();
-    }
-  }, [gameState.currentGameState, handleApiAction, savePreActionState, transitionToState]);
+        const response = extractGameStateData(data);
+
+        if (response) {
+          transitionToState(response?.target_phase as GameState, response);
+        } else {
+          throw new Error("Missing response data");
+        }
+      } catch (e) {
+        console.error("Hiba a SPLIT_FINISH fázisban:", e);
+        if (isMountedRef.current) {
+          setIsWFSR(false);
+          transitionToState("ERROR");
+        }
+      }
+    };
+    SplitFinish();
+  }, [state.gameState.currentGameState, handleApiAction, savePreActionState, transitionToState]);
 
   // --- SPLIT_FINISH_OUTCOME ---
   useEffect(() => {
-    if (gameState.currentGameState === "SPLIT_FINISH_OUTCOME") {
-      const SplitFinishTransit = async () => {
-        if (!isMountedRef.current) return;
+    if (state.gameState.currentGameState !== "SPLIT_FINISH_OUTCOME") return;
 
-        try {
-          if (gameState.players) {
-            if (Object.keys(gameState.players).length === 0) {
-              if (gameState.tokens === 0) {
-                if (isMountedRef.current) {
-                  transitionToState("OUT_OF_TOKENS");
-                }
-              } else {
-                timeoutIdRef.current = window.setTimeout(() => {
-                  if (isMountedRef.current) {
-                    transitionToState("BETTING", {
-                      ...initialGameState,
-                      currentGameState: "BETTING",
-                      deck_len: gameState.deck_len,
-                      tokens: gameState.tokens,
-                      bet: 0,
-                    });
-                  }
-                }, 4000);
-              }
+    const SplitFinishTransit = async () => {
+      if (!isMountedRef.current || isProcessingRef.current) return;
+      isProcessingRef.current = true;
+
+      try {
+        const { players, tokens } = state.gameState;
+        if (players) {
+          if (Object.keys(players).length === 0) {
+            if (tokens === 0) {
+              transitionToState("OUT_OF_TOKENS");
             } else {
-              const data = await addPlayerFromPlayers();
-              if (data) {
-                if (!isMountedRef.current) return;
-                const response = extractGameStateData(data);
-                dispatch({
-                  type: 'SYNC_SERVER_DATA',
-                  payload: response as GameStateData
-                });
-                timeoutIdRef.current = window.setTimeout(() => {
-                  if (isMountedRef.current) {
-                    transitionToState("SPLIT_FINISH", response);
-                  }
-                }, 4000);
-              }
+              timeoutIdRef.current = window.setTimeout(() => {
+                if (isMountedRef.current) {
+                  // Kérjük le a biztos értékeket
+                  const currentTokens = state.gameState.tokens;
+                  const currentDeck = state.gameState.deck_len;
+
+                  console.log(">>> SPLIT VÉGE: Váltás BETTING-re", currentTokens);
+
+                  transitionToState("BETTING", {
+                    // 1. Mindent alaphelyzetbe állítunk az initialState-ből
+                    ...initialGameDataState.gameState,
+
+                    // 2. DE a legfontosabbakat megtartjuk/felülírjuk
+                    tokens: currentTokens,
+                    deck_len: currentDeck,
+                    currentGameState: "BETTING",
+
+                    // 3. EXPLICIT NULLÁZÁS (Ami a chipeket blokkolhatja)
+                    bet: 0,
+                    is_round_active: false, // Ez engedélyezi a fogadást
+                    players: {},            // Ürítjük a split listát
+                    player: initialGameDataState.gameState.player, // Alap játékos adatok
+                    winner: 0
+                  });
+                }
+              }, 4000);
+            }
+          } else {
+            const data = await handleApiAction(addPlayerFromPlayers);
+            if (data) {
+              if (!isMountedRef.current) return;
+              const response = extractGameStateData(data);
+
+              timeoutIdRef.current = window.setTimeout(() => {
+                if (isMountedRef.current) {
+                  setIsWFSR(false);
+                  //transitionToState("SPLIT_FINISH", response);
+                  transitionToState(response?.target_phase as GameState, response);
+                }
+              }, 4000);
             }
           }
-        } catch (e) {
-          console.error("Hiba a SPLIT_FINISH_OUTCOME fázisban:", e);
-          if (isMountedRef.current) {
-            transitionToState("ERROR");
-          }
         }
-      };
-      SplitFinishTransit();
-    }
-  }, [gameState.currentGameState, gameState.deck_len, gameState.players, gameState.tokens, handleApiAction, transitionToState]);
+      } catch (e) {
+        console.error("Hiba a SPLIT_FINISH_OUTCOME fázisban:", e);
+        if (isMountedRef.current) {
+          transitionToState("ERROR");
+        }
+      } finally {
+        if (isMountedRef.current) {
+          // Itt is állítsuk le, ha esetleg a catch ágba futna a kód
+          setIsWFSR(false);
+        }
+      }
+    };
+    SplitFinishTransit();
+
+    return () => {
+      if (timeoutIdRef.current) {
+        console.log("Tisztítás: timeout törölve");
+        window.clearTimeout(timeoutIdRef.current);
+      }
+    };
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.gameState.currentGameState, transitionToState]);
 
   // --- OUT_OF_TOKENS ---
   useEffect(() => {
-    if (gameState.currentGameState === "OUT_OF_TOKENS") {
+    if (state.gameState.currentGameState === "OUT_OF_TOKENS" && !isProcessingRef.current) {
+      isProcessingRef.current = true;
+      setIsWFSR(true);
       const HandleOutOfTokens = async () => {
         if (!isMountedRef.current) return;
 
         try {
-          const data = await setRestart();
+          const data = await handleApiAction(setRestart);
           if (data) {
             if (!isMountedRef.current) return;
             const response = extractGameStateData(data);
-            dispatch({
-              type: 'SYNC_SERVER_DATA',
-              payload: response as GameStateData
-            });
             if (response) {
               timeoutIdRef.current = window.setTimeout(() => {
                 if (isMountedRef.current) {
@@ -973,11 +878,11 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       };
       HandleOutOfTokens();
     }
-  }, [gameState.currentGameState, handleApiAction, transitionToState]);
+  }, [state.gameState.currentGameState, handleApiAction, transitionToState]);
 
   // --- RESTART_GAME ---
   useEffect(() => {
-    if (gameState.currentGameState === "RESTART_GAME") {
+    if (state.gameState.currentGameState === "RESTART_GAME") {
       const RestartGame = async () => {
         if (!isMountedRef.current) return;
 
@@ -985,7 +890,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           timeoutIdRef.current = window.setTimeout(() => {
             if (isMountedRef.current) {
               resetGameVariables();
-              transitionToState("RELOADING", gameState);
+              transitionToState("RELOADING", state.gameState);
             }
           }, 5000);
         } catch (e) {
@@ -997,11 +902,12 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       };
       RestartGame();
     }
-  }, [gameState, gameState.currentGameState, handleApiAction, resetGameVariables, transitionToState]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.gameState.currentGameState, resetGameVariables, transitionToState]);
 
   // --- ERROR ---
   useEffect(() => {
-    if (gameState.currentGameState === "ERROR") {
+    if (state.gameState.currentGameState === "ERROR") {
       const ForceRestart = async () => {
         if (!isMountedRef.current) return;
 
@@ -1012,7 +918,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         setIsWFSR(true);
 
         try {
-          const data = await forceRestart();
+          const data = await handleApiAction(forceRestart);
           if (data) {
             if (!isMountedRef.current) return;
             const response = extractGameStateData(data);
@@ -1030,18 +936,18 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       };
       ForceRestart();
     }
-  }, [gameState.currentGameState, handleApiAction, transitionToState]);
+  }, [state.gameState.currentGameState, handleApiAction, transitionToState]);
 
   // --- RELOADING ---
   useEffect(() => {
-    if (gameState.currentGameState === "RELOADING") {
+    if (state.gameState.currentGameState === "RELOADING") {
       const Reloading = async () => {
         if (!isMountedRef.current) return;
 
         try {
           timeoutIdRef.current = window.setTimeout(() => {
             if (isMountedRef.current) {
-              transitionToState("BETTING", gameState);
+              transitionToState("BETTING", state.gameState);
             }
           }, 5000);
         } catch (error) {
@@ -1050,11 +956,11 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       };
       Reloading();
     }
-  }, [gameState, transitionToState]);
+  }, [state.gameState, transitionToState]);
 
   return {
-    gameState,
-    currentGameState: gameState.currentGameState,
+    gameState: state.gameState,
+    currentGameState: state.gameState.currentGameState,
     transitionToState,
     handleStartGame,
     handleOnContinue,

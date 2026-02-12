@@ -468,7 +468,7 @@ def ins_request(user, game):
 @login_required
 @with_game_state
 def hit(user, game):
-    game.hit(False)
+    game.hit(False, False)
 
     return (
         jsonify(
@@ -497,7 +497,7 @@ def double_request(user, game):
 
     amount_deducted = game.double_request()
     user.tokens -= amount_deducted
-    game.hit(True)
+    game.hit(True, False)
 
     return (
         jsonify(
@@ -506,7 +506,7 @@ def double_request(user, game):
                 "message": "Double placed successfully.",
                 "double_amount": amount_deducted,
                 "current_tokens": user.tokens,
-                "game_state": GameSerializer.serialize_by_context(game, request.path),
+                "game_state": GameSerializer.serialize_by_context(game, "hit"),
                 "game_state_hint": "DOUBLE_RECIEVED",
             }
         ),
@@ -543,7 +543,7 @@ def rewards(user, game):
 @login_required
 @with_game_state
 def stand_and_rewards(user, game):
-    game.stand()
+    game.stand(False)
     token_change = game.rewards()
     user.tokens += token_change
 
@@ -678,7 +678,7 @@ def add_player_from_players(user, game):
 @login_required
 @with_game_state
 def split_hit(user, game):
-    game.hit(False)
+    game.hit(False, True)
 
     return (
         jsonify(
@@ -707,7 +707,7 @@ def split_double_request(user, game):
 
     amount_deducted = game.double_request()
     user.tokens -= amount_deducted
-    game.hit(True)
+    game.hit(True, True)
 
     return (
         jsonify(
@@ -728,8 +728,8 @@ def split_double_request(user, game):
 @api_error_handler
 @login_required
 @with_game_state
-def double_stand_and_rewards(user, game):
-    game.stand()
+def split_stand_and_rewards(user, game):
+    game.stand(True)
     token_change = game.rewards()
     user.tokens += token_change
 
