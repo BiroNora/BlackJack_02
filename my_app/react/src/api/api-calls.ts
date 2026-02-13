@@ -69,12 +69,6 @@ export async function handleHit() {
   return data;
 }
 
-export async function handleRewards() {
-  const data = await callApiEndpoint("/api/rewards", "POST");
-
-  return data;
-}
-
 export async function handleInsurance() {
   const data = await callApiEndpoint("/api/ins_request", "POST");
 

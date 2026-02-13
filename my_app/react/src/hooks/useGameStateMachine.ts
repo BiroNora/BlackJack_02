@@ -8,7 +8,6 @@ import {
   getShuffling,
   startGame,
   handleHit,
-  //handleRewards,
   handleInsurance,
   handleDouble,
   handleStandAndRewards,

@@ -515,29 +515,6 @@ def double_request(user, game):
 
 
 # 8
-@app.route("/api/rewards", methods=["POST"])
-@api_error_handler
-@login_required
-@with_game_state
-def rewards(user, game):
-    token_change = game.rewards()
-    user.tokens += token_change
-
-    return (
-        jsonify(
-            {
-                "status": "success",
-                "message": "Rewards processed and tokens updated.",
-                "current_tokens": user.tokens,
-                "game_state": GameSerializer.serialize_by_context(game, request.path),
-                "game_state_hint": "REWARDS_PROCESSED",
-            }
-        ),
-        200,
-    )
-
-
-# 9
 @app.route("/api/stand_and_rewards", methods=["POST"])
 @api_error_handler
 @login_required
@@ -569,7 +546,7 @@ def stand_and_rewards(user, game):
 
 
 # SPLIT part
-# 10
+# 9
 @app.route("/api/split_request", methods=["POST"])
 @api_error_handler
 @login_required
@@ -600,7 +577,7 @@ def split_request(user, game):
     )
 
 
-# 11
+# 10
 @app.route("/api/add_to_players_list_by_stand", methods=["POST"])
 @api_error_handler
 @login_required
@@ -622,7 +599,7 @@ def add_to_players_list_by_stand(user, game):
     )
 
 
-# 12
+# 11
 @app.route("/api/add_split_player_to_game", methods=["POST"])
 @api_error_handler
 @login_required
@@ -647,7 +624,7 @@ def add_split_player_to_game(user, game):
     )
 
 
-# 13
+# 12
 @app.route("/api/add_player_from_players", methods=["POST"])
 @api_error_handler
 @login_required
@@ -672,7 +649,7 @@ def add_player_from_players(user, game):
     )
 
 
-# 14
+# 13
 @app.route("/api/split_hit", methods=["POST"])
 @api_error_handler
 @login_required
@@ -694,7 +671,7 @@ def split_hit(user, game):
     )
 
 
-# 15
+# 14
 @app.route("/api/split_double_request", methods=["POST"])
 @api_error_handler
 @login_required
@@ -723,7 +700,7 @@ def split_double_request(user, game):
     )
 
 
-# 16
+# 15
 @app.route("/api/split_stand_and_rewards", methods=["POST"])
 @api_error_handler
 @login_required
@@ -733,13 +710,21 @@ def split_stand_and_rewards(user, game):
     token_change = game.rewards()
     user.tokens += token_change
 
+    if user.tokens <= 0:
+        game_data = GameSerializer.serialize_by_context(game, request.path)
+        game_data["pre_phase"] = PhaseState.OUT_OF_TOKENS.value
+    else:
+        game.clear_up()
+        game_data = GameSerializer.serialize_by_context(game, request.path)
+        game_data["pre_phase"] = PhaseState.BETTING.value
+
     return (
         jsonify(
             {
                 "status": "success",
                 "message": "Rewards processed and tokens updated.",
                 "current_tokens": user.tokens,
-                "game_state": GameSerializer.serialize_by_context(game, request.path),
+                "game_state": game_data,
                 "game_state_hint": "REWARDS_PROCESSED",
             }
         ),
@@ -747,7 +732,7 @@ def split_stand_and_rewards(user, game):
     )
 
 
-# 17
+# 16
 @app.route("/api/set_restart", methods=["POST"])
 @api_error_handler
 @login_required
@@ -770,7 +755,7 @@ def set_restart(user, game):
     )
 
 
-# 18
+# 17
 @app.route("/api/force_restart", methods=["POST"])
 @api_error_handler
 @login_required
@@ -800,7 +785,7 @@ def force_restart_by_client_id(user):
     )
 
 
-# 19
+# 18
 @app.route("/api/recover_game_state", methods=["POST"])
 @api_error_handler
 @login_required
@@ -820,7 +805,7 @@ def recover_game_state(user, game):
     )
 
 
-# 20
+# 19
 @app.route("/api/clear_game_state", methods=["POST"])
 @api_error_handler
 @login_required
@@ -845,7 +830,7 @@ def clear_game_state(user, game):
     )
 
 
-# 21
+# 20
 @app.route("/error_page", methods=["GET"])
 def error_page():
     return render_template("error.html")
