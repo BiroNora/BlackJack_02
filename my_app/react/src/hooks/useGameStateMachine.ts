@@ -537,17 +537,9 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     console.log("--- MAIN_STAND INDUL ---");
 
     timeoutIdRef.current = window.setTimeout(() => {
-      // Ellenőrizzük, hogy még mindig a komponensnél vagyunk-e
       if (isMountedRef.current) {
-        // Fontos: Előbb felszabadítjuk a lockot, mielőtt váltunk,
-        // hogy a következő fázis (pl. BETTING) tiszta lappal indulhasson.
         isProcessingRef.current = false;
-
-        const rawPrePhase = state.gameState.pre_phase;
-        const nextPhase = (rawPrePhase as string === "NONE" || !rawPrePhase)
-          ? "BETTING"
-          : (rawPrePhase as GameState);
-        transitionToState(nextPhase, state.gameState);
+        transitionToState(state.gameState.pre_phase as GameState, state.gameState);
       }
     }, 4000);
 
@@ -648,20 +640,13 @@ export function useGameStateMachine(): GameStateMachineHookResult {
   // --- SPLIT_NAT21_TRANSIT ---
   useEffect(() => {
     if (state.gameState.currentGameState !== "SPLIT_NAT21_TRANSIT" || isProcessingRef.current) return;
-    //isSplitNat21.current = true;
     isProcessingRef.current = true;
     setIsWFSR(true);
     console.log("--- SPLIT_NAT21_TRANSIT INDUL ---");
 
     const SplitNat21Transit = async () => {
       try {
-        timeoutIdRef.current = window.setTimeout(() => {
-          if (isMountedRef.current) {
-            //const nextState = (gameState?.pre_phase as GameState) || "SPLIT_STAND";
-            transitionToState(state.gameState?.pre_phase as GameState, state.gameState);
-            setIsWFSR(false);
-          }
-        }, 2000);
+        transitionToState(state.gameState?.pre_phase as GameState, state.gameState);
       } catch {
         if (isMountedRef.current) {
           transitionToState("ERROR");
@@ -669,11 +654,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       }
     };
     SplitNat21Transit();
-
-    return () => {
-      if (timeoutIdRef.current) window.clearTimeout(timeoutIdRef.current);
-    };
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.gameState.currentGameState, state.gameState.pre_phase, transitionToState]);
 
@@ -774,53 +754,38 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       isProcessingRef.current = true;
 
       try {
-        const { players, tokens } = state.gameState;
-        if (players) {
-          if (Object.keys(players).length === 0) {
-            if (tokens === 0) {
-              transitionToState("OUT_OF_TOKENS");
-            } else {
-              timeoutIdRef.current = window.setTimeout(() => {
-                if (isMountedRef.current) {
-                  // Kérjük le a biztos értékeket
-                  const currentTokens = state.gameState.tokens;
-                  const currentDeck = state.gameState.deck_len;
-
-                  console.log(">>> SPLIT VÉGE: Váltás BETTING-re", currentTokens);
-
-                  transitionToState("BETTING", {
-                    // 1. Mindent alaphelyzetbe állítunk az initialState-ből
-                    ...initialGameDataState.gameState,
-
-                    // 2. DE a legfontosabbakat megtartjuk/felülírjuk
-                    tokens: currentTokens,
-                    deck_len: currentDeck,
-                    currentGameState: "BETTING",
-
-                    // 3. EXPLICIT NULLÁZÁS (Ami a chipeket blokkolhatja)
-                    bet: 0,
-                    is_round_active: false, // Ez engedélyezi a fogadást
-                    players: {},            // Ürítjük a split listát
-                    player: initialGameDataState.gameState.player, // Alap játékos adatok
-                    winner: 0
-                  });
-                }
-              }, 4000);
+        const { players, tokens, deck_len, pre_phase } = state.gameState;
+        if (players && Object.keys(players).length === 0) {
+          timeoutIdRef.current = window.setTimeout(() => {
+            if (isMountedRef.current) {
+              // Létrehozzuk a tiszta állapotot a váltáshoz
+              const nullState = {
+                ...initialGameDataState.gameState,
+                tokens: tokens,           // Megtartjuk a friss egyenleget
+                deck_len: deck_len,       // Megtartjuk a pakli állapotát
+                currentGameState: pre_phase || "BETTING",
+                bet: 0,
+                is_round_active: false,
+                players: {},
+                winner: 0
+              };
+              //console.log(`>>> SPLIT VÉGE: Váltás ${pre_phase}-re`, tokens);
+              transitionToState(pre_phase as GameState, nullState);
             }
-          } else {
-            const data = await handleApiAction(addPlayerFromPlayers);
-            if (data) {
-              if (!isMountedRef.current) return;
-              const response = extractGameStateData(data);
+          }, 4000);
+        } else {
+          const data = await handleApiAction(addPlayerFromPlayers);
+          if (data) {
+            if (!isMountedRef.current) return;
+            const response = extractGameStateData(data);
 
-              timeoutIdRef.current = window.setTimeout(() => {
-                if (isMountedRef.current) {
-                  setIsWFSR(false);
-                  //transitionToState("SPLIT_FINISH", response);
-                  transitionToState(response?.target_phase as GameState, response);
-                }
-              }, 4000);
-            }
+            timeoutIdRef.current = window.setTimeout(() => {
+              if (isMountedRef.current) {
+                setIsWFSR(false);
+                //transitionToState("SPLIT_FINISH", response);
+                transitionToState(response?.target_phase as GameState, response);
+              }
+            }, 4000);
           }
         }
       } catch (e) {

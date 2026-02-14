@@ -60,8 +60,8 @@ class Game:
         self.split_req: int = 0
         self.unmasked_sum_sent = False
         self.suits = ["♥", "♦", "♣", "♠"]
-        self.ranks = ["A", "K", "Q", "J", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
-        # self.ranks = ["A", "K", "Q", "J", "9", "10"]
+        # self.ranks = ["A", "K", "Q", "J", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+        self.ranks = ["A", "K", "Q", "J", "9", "10"]
         self.deck = []
         self.deck_len_init = TOTAL_INITIAL_CARDS
         self.bet: int = 0
@@ -75,12 +75,12 @@ class Game:
     def initialize_new_round(self):
         self.clear_up()
 
-        card1 = self.deck.pop(0)
+        # card1 = self.deck.pop(0)
         card2 = self.deck.pop(0)
-        card3 = self.deck.pop(0)
+        # card3 = self.deck.pop(0)
         card4 = self.deck.pop(0)
-        # card1 = "♥A"
-        # card3 = "♣A"
+        card1 = "♥K"
+        card3 = "♣Q"
         # card2 = "♦Q"
         # card4 = "♣A"
         player_hand = [card1, card3]
@@ -344,7 +344,7 @@ class Game:
         self.players_index[old_id] = self.stated
         self.players_index[new_id_B] = self.stated
 
-        is_nat21 = self.player["hand"] == HandState.TWENTY_ONE
+        is_nat21 = self.player["hand_state"] == HandState.TWENTY_ONE
 
         self.set_split_req(1)
 
@@ -450,6 +450,9 @@ class Game:
             PhaseState.SPLIT_ACE_TRANSIT    if self.aces and self.split_req != 0 else
             PhaseState.SPLIT_FINISH         if self.aces and self.split_req == 0 else
             PhaseState.SPLIT_TURN
+        )
+        self.pre_phase = (
+            PhaseState.SPLIT_STAND if state == HandState.TWENTY_ONE else PhaseState.NONE
         )
 
         return self.player

@@ -710,13 +710,12 @@ def split_stand_and_rewards(user, game):
     token_change = game.rewards()
     user.tokens += token_change
 
-    if user.tokens <= 0:
-        game_data = GameSerializer.serialize_by_context(game, request.path)
-        game_data["pre_phase"] = PhaseState.OUT_OF_TOKENS.value
-    else:
-        game.clear_up()
-        game_data = GameSerializer.serialize_by_context(game, request.path)
-        game_data["pre_phase"] = PhaseState.BETTING.value
+    game_data = GameSerializer.serialize_by_context(game, request.path)
+
+    game_data["pre_phase"] = (
+            PhaseState.OUT_OF_TOKENS.value if user.tokens <= 0 else
+            PhaseState.BETTING.value
+        )
 
     return (
         jsonify(
