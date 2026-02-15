@@ -44,10 +44,12 @@ const BetBankDelayed: React.FC<BetBankDelayedProps> = ({
     displayedBet !== null ? formatNumber(displayedBet) : "---";
 
   return (
-    <div>
-      <div className="bank1 merriweather">Bet: {betToDisplay}</div>
+    <div className="bank-area-wrapper">
+      <div className="bank1 merriweather">
+        Bet:{"\u00A0"}<span className="bet-amount">{betToDisplay}</span>
+      </div>
       <div className="bet-bank merriweather">
-        Player's bank: <span className="bank-amount">{tokensToDisplay}</span>
+        Player's bank:{"\u00A0"}<span className="bank-amount">{tokensToDisplay}</span>
       </div>
     </div>
   );
