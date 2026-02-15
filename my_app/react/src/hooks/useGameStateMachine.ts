@@ -565,10 +565,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     console.log(`--- ${state.gameState.currentGameState} LOGIKA INDUL ---`);
     const SplitStand = async () => {
       try {
-        await new Promise(resolve => {
-          timeoutIdRef.current = window.setTimeout(resolve, 2000);
-        });
-
         if (!isMountedRef.current) return;
 
         // --- 2. ADATMENTÉS (Stand) ---
@@ -581,7 +577,11 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         }
 
         if (response?.split_req === 0) {
-          transitionToState(response?.target_phase as GameState, response);
+          timeoutIdRef.current = window.setTimeout(() => {
+            if (isMountedRef.current) {
+              transitionToState(response?.target_phase as GameState, response);
+            }
+          }, 2000);
         } else {
           const splitResponse = await handleApiAction(addSplitPlayerToGame);
           const ans = extractGameStateData(splitResponse);
@@ -591,7 +591,11 @@ export function useGameStateMachine(): GameStateMachineHookResult {
             return;
           }
 
-          transitionToState(ans?.target_phase as GameState, ans);
+          timeoutIdRef.current = window.setTimeout(() => {
+            if (isMountedRef.current) {
+              transitionToState(ans?.target_phase as GameState, ans);
+            }
+          }, 2000);
         }
       } catch (error) {
         console.error("SplitStand Sequence Error:", error);
