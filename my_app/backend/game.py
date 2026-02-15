@@ -349,12 +349,13 @@ class Game:
         self.set_split_req(1)
 
         self.target_phase = (
-            PhaseState.SPLIT_ACE_TRANSIT
-            if self.aces
-            else PhaseState.SPLIT_NAT21_TRANSIT if is_nat21 else PhaseState.SPLIT_TURN
+            PhaseState.SPLIT_ACE_TRANSIT    if self.aces else
+            PhaseState.SPLIT_NAT21_TRANSIT  if is_nat21 else
+            PhaseState.SPLIT_TURN
         )
         self.pre_phase = (
-            PhaseState.SPLIT_STAND if is_nat21 and not self.aces else PhaseState.NONE
+            PhaseState.SPLIT_STAND if is_nat21 and not self.aces else
+            PhaseState.NONE
         )
 
     def deal_card(self, hand, is_first, hand_id):
