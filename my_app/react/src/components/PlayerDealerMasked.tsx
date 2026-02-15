@@ -1,4 +1,5 @@
 import React, { type JSX } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import type { GameStateData } from "../types/game-types";
 import "../styles/playerDealer.css";
 import { maskedScore } from "../utilities/utils";
@@ -76,6 +77,15 @@ const PlayerDealerMasked: React.FC<TableProps> = ({
   const formattedPlayerHand = formatHand(playerHand);
   const formattedDealerHand = formatHand(dealerHand);
 
+  const fadeProps = {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    transition: {
+      duration: 1,
+      delay: 0.3,
+    },
+  };
+
   return (
     <div className="player-dealer-area">
       <div id="dealer-hand" className="play">
@@ -94,11 +104,27 @@ const PlayerDealerMasked: React.FC<TableProps> = ({
           <span className="label-text1"> {player.sum}</span>
         </div>
         <div className="score-area-wrapper">
-          {showInsLost ? (
-            <span className="score-mood merriweather9red">Insurance lost</span>
-          ) : (
-            <span className="score-mood merriweather5grey2">{}</span>
-          )}
+          <AnimatePresence mode="wait">
+            {" "}
+            {/* Ajánlott a sima váltáshoz */}
+            {showInsLost ? (
+              <motion.span
+                key="ins-lost" // Fix kulcs a feliratnak
+                {...fadeProps}
+                className="score-mood merriweather9red"
+              >
+                Insurance lost
+              </motion.span>
+            ) : (
+              <motion.span
+                key="ins-empty" // Fix kulcs az üres állapotnak
+                {...fadeProps}
+                className="score-mood merriweather5grey2"
+              >
+                {"\u00A0"} {/* Üres karakter, hogy a magasság megmaradjon */}
+              </motion.span>
+            )}
+          </AnimatePresence>
         </div>
         <div className="hand hand-area-wrapper">{formattedPlayerHand}</div>
       </div>

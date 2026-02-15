@@ -18,7 +18,7 @@ const Winner: React.FC<TableProps> = ({ gameState }) => {
     exit: { opacity: 0, scale: 0.8 },
     transition: {
       duration: 1,
-      delay: 0.5,
+      delay: 0.9,
     },
   };
 

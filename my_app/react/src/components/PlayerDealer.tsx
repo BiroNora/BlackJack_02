@@ -1,4 +1,5 @@
 import React, { type JSX } from "react";
+import { motion } from "motion/react";
 import { states, type GameStateData } from "../types/game-types";
 import "../styles/playerDealer.css";
 
@@ -85,16 +86,43 @@ const PlayerDealer: React.FC<TableProps> = ({ gameState }) => {
       dealer_unmasked.sum
     );
 
+  const fadeProps = {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    transition: {
+      duration: 1,
+      delay: 0.3,
+    },
+  };
+
   return (
     <div className="player-dealer-area">
       <div id="dealer-hand" className="play">
-        <div className="hand hand-area-wrapper">{formattedDealerHand}</div>
+        <motion.div
+          key={`d-hand-${dealerHand.length}`}
+          {...fadeProps}
+          className="hand hand-area-wrapper"
+        >
+          {formattedDealerHand}
+        </motion.div>
         <div className="score-area-wrapper">
-          <span className="score-mood merriweather5grey2">{d_state}</span>
+          <motion.span
+            key={`d-state-${dealer_unmasked.hand_state}`}
+            {...fadeProps}
+            className="score-mood merriweather5grey2 animate-fade"
+          >
+            {d_state}
+          </motion.span>
         </div>
         <div className="band-area-wrapper">
           <span className="label-text">Dealer: </span>
-          <span className="label-text1">{sum}</span>
+          <motion.span
+            key={`d-sum-${dealer_unmasked.sum}`}
+            {...fadeProps}
+            className="label-text1 animate-fade"
+          >
+            {sum}
+          </motion.span>
         </div>
       </div>
       <div id="player-hand" className="play">
