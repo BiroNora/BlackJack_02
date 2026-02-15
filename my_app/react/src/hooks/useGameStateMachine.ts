@@ -34,13 +34,11 @@ import { gameReducer, initialGameDataState } from "../context/gameReducer";
 // A hook visszatérési típusa most inline van deklarálva, nincs külön 'type' definíció.
 export function useGameStateMachine(): GameStateMachineHookResult {
   // isWaitingForServerResponse = isWFSR  (button disabling)
-  // setIsWaitingForServerResponse = setIsWFSR
   const [isWFSR, setIsWFSR] = useState(false);
   const [state, dispatch] = useReducer(gameReducer, initialGameDataState);
 
   const timeoutIdRef = useRef<number | null>(null);
   // Az isMounted ref-et is használjuk a komponens mountolt állapotának követésére
-  // Ennek típusa boolean, a useRef pedig automatikusan kikövetkezteti.
   const isMountedRef = useRef(true);
   // Ez a védelmi zár (lock) az ismételt hívások ellen
   const isProcessingRef = useRef(false);
@@ -128,37 +126,18 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     },
     [transitionToState],
   );
-  // MÉG NINCS MEG! Legutolsó az állapotváltozás miatt
-  const handleOnContinue = useCallback(async () => {
-    setIsWFSR(true);
 
-    try {
+  const handleOnContinue = useCallback(() => {
+    executeAsyncAction(async () => {
       const data = await handleApiAction(recoverGameState);
-      if (data) {
-        if (!isMountedRef.current) return;
 
-        const response = extractGameStateData(data);
-        const hasSplit = response?.players && Object.keys(response.players).length > 0;
-        const isActive = response?.is_round_active;
+      const response = extractGameStateData(data);
+      if (!response) return;
 
-        if (hasSplit) {
-          transitionToState(response.has_rewards ? "SPLIT_FINISH" : "SPLIT_TURN", response);
-        } else if (isActive) {
-          transitionToState("MAIN_TURN", response);
-        } else {
-          transitionToState("BETTING", response);
-        }
-      }
-    } catch {
-      if (isMountedRef.current) {
-        transitionToState("ERROR");
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setIsWFSR(false);
-      }
-    }
-  }, [handleApiAction, transitionToState]);
+      //console.log(">>> RECOVERY: Folytatás fázisa:", response?.target_phase);
+      transitionToState(response?.target_phase as GameState, response);
+    });
+  }, [executeAsyncAction, handleApiAction, transitionToState]);
 
   const handleOnStartNew = useCallback(() => {
     executeAsyncAction(async () => {
@@ -171,7 +150,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       if (!response) return;
 
       // 4. Átlépünk az új fázisba (SHUFFLING vagy BETTING a szerver döntése alapján)
-      transitionToState(response.target_phase ?? "ERROR", response);
+      transitionToState(response?.target_phase as GameState, response);
     });
   }, [executeAsyncAction, handleApiAction, transitionToState]);
 
@@ -186,7 +165,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         const response = extractGameStateData(data);
         if (!response) return;
 
-        transitionToState(response.target_phase ?? "ERROR", response);
+        transitionToState(response?.target_phase as GameState, response);
       });
     },
     [state.gameState.tokens, executeAsyncAction, handleApiAction, transitionToState]
@@ -203,7 +182,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       const response = extractGameStateData(data);
       if (!response) return;
 
-      transitionToState(response.target_phase ?? "ERROR", response);
+      transitionToState(response?.target_phase as GameState, response);
     });
   }, [state.gameState.bet_list, executeAsyncAction, handleApiAction, transitionToState]);
 
@@ -236,7 +215,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
       if (!response) return;
 
-      transitionToState(response.target_phase ?? "ERROR", response);
+      transitionToState(response?.target_phase as GameState, response);
     });
   }, [executeAsyncAction, savePreActionState, handleApiAction, transitionToState]);
 
@@ -250,7 +229,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       const response = extractGameStateData(data);
       if (!response) return;
 
-      transitionToState(response.target_phase ?? "ERROR", response);
+      transitionToState(response?.target_phase as GameState, response);
     });
   }, [executeAsyncAction, savePreActionState, handleApiAction, transitionToState]);
 
@@ -427,10 +406,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         if (!isMountedRef.current) return;
 
         const { tokens, game_state } = initData as SessionInitResponse;
-
-        // FONTOS: Nem kell külön dispatch a SYNC-re, ha a transitionToState-et okosan használod!
-        // VAGY: Ha külön akarod választani az adatfrissítést a fázisváltástól:
-
         const nextPhase = game_state.target_phase as GameState;
 
         // Itt egyetlen hívással lerendezzük az adatot és a fázisváltást is a Reducerben
@@ -510,7 +485,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           isProcessingRef.current = false;
           return;
         }
-        //isProcessingRef.current = false;
 
         transitionToState(response?.pre_phase as GameState, response);
       } catch (error) {
@@ -795,7 +769,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         }
       } finally {
         if (isMountedRef.current) {
-          // Itt is állítsuk le, ha esetleg a catch ágba futna a kód
           setIsWFSR(false);
         }
       }
