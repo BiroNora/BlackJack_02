@@ -133,8 +133,8 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
       const response = extractGameStateData(data);
       if (!response) return;
-
-      //console.log(">>> RECOVERY: Folytatás fázisa:", response?.target_phase);
+      console.log(">>> RECOVERY: response:", response);
+      console.log(">>> RECOVERY: Folytatás fázisa:", response?.target_phase);
       transitionToState(response?.target_phase as GameState, response);
     });
   }, [executeAsyncAction, handleApiAction, transitionToState]);
@@ -551,7 +551,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       }
     };
     MainStandTransit();
-  }, [state.gameState.currentGameState, handleApiAction, transitionToState]);
+  }, [state.gameState.currentGameState, handleApiAction, transitionToState, savePreActionState]);
 
   // --- SPLIT_STAND and SPLIT_STAND_DOUBLE
   useEffect(() => {

@@ -37,8 +37,10 @@ const PlayerDealerMasked: React.FC<TableProps> = ({
 
     return (
       <React.Fragment>
-        <span className={suitClass}>{suit}</span>
-        <span className="merriweatherblack">{value}</span>
+        <span style={{ whiteSpace: "nowrap" }}>
+          <span className={suitClass}>{suit}</span>
+          <span className="merriweatherblack">{value}</span>
+        </span>
       </React.Fragment>
     );
   };

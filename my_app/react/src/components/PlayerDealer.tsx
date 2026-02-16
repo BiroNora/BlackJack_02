@@ -11,7 +11,7 @@ const PlayerDealer: React.FC<TableProps> = ({ gameState }) => {
   if (!gameState || !gameState.player || !gameState.dealer_unmasked) {
     return null;
   }
-  const { player, dealer_unmasked } = gameState;
+  const { player, dealer_unmasked, currentGameState } = gameState;
 
   const formatCard = (card: string): JSX.Element | string => {
     const suit = card[0]; // Az első karakter a szín
@@ -28,8 +28,10 @@ const PlayerDealer: React.FC<TableProps> = ({ gameState }) => {
 
     return (
       <React.Fragment>
-        <span className={suitClass}>{suit}</span>
-        <span className="merriweatherblack">{value}</span>
+        <span style={{ whiteSpace: "nowrap" }}>
+          <span className={suitClass}>{suit}</span>
+          <span className="merriweatherblack">{value}</span>
+        </span>
       </React.Fragment>
     );
   };
@@ -68,6 +70,8 @@ const PlayerDealer: React.FC<TableProps> = ({ gameState }) => {
     states[dealer_unmasked.hand_state]
   );
 
+  const shouldShowScore = currentGameState !== "SPLIT_FINISH";
+
   const playerHand = loop(player.hand);
   const dealerHand = loop(dealer_unmasked.hand);
 
@@ -92,6 +96,14 @@ const PlayerDealer: React.FC<TableProps> = ({ gameState }) => {
     transition: {
       duration: 1,
       delay: 0.3,
+    },
+  };
+
+  const fadeProps1 = {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    transition: {
+      duration: 0.8,
     },
   };
 
@@ -131,7 +143,15 @@ const PlayerDealer: React.FC<TableProps> = ({ gameState }) => {
           <span className="label-text1">{player.sum}</span>
         </div>
         <div className="score-area-wrapper">
-          <span className="score-mood merriweather5grey">{p_state}</span>
+          {shouldShowScore && (
+            <motion.span
+              key={`p-state-${p_state}`}
+              {...fadeProps1}
+              className="score-mood merriweather5grey"
+            >
+              {p_state}
+            </motion.span>
+          )}
         </div>
         <div className="hand hand-area-wrapper">{formattedPlayerHand}</div>
       </div>

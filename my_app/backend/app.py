@@ -506,7 +506,7 @@ def double_request(user, game):
                 "message": "Double placed successfully.",
                 "double_amount": amount_deducted,
                 "current_tokens": user.tokens,
-                "game_state": GameSerializer.serialize_by_context(game, "hit"),
+                "game_state": GameSerializer.serialize_by_context(game, request.path),
                 "game_state_hint": "DOUBLE_RECIEVED",
             }
         ),

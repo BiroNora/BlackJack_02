@@ -25,6 +25,7 @@
   --extra-vertical-padding05: 0.5em;
   --extra-vertical-padding1: 1em;
   box-sizing: border-box;
+  scrollbar-gutter: stable;
 }
 
 #root {
@@ -45,10 +46,6 @@
     padding-top: 2rem;
     padding-left: 2rem;
     padding-right: 2rem;
-  }
-
-  .game-action-area-wrapper {
-    min-height: 4.6rem;
   }
 }
 
@@ -89,10 +86,6 @@
     padding-left: 5.5rem;
     padding-right: 5.5rem;
     max-width: 1280px; /* Max szélesség az xl breakpointig */
-  }
-
-  .game-action-area-wrapper {
-    min-height: 4rem;
   }
 }
 
@@ -263,6 +256,7 @@ button:disabled {
   width: 100%;
   padding-top: var(--extra-vertical-padding02);
   box-sizing: border-box;
+  min-height: 4rem;
 }
 
 .players-area-wrapper {
