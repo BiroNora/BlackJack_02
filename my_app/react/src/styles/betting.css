@@ -32,11 +32,6 @@
   font-weight: 500;
 }
 
-.bank-amount {
-  margin-left: 0.5rem; /* Állítsd be a kívánt távolságot pixelben */
-  font-weight: bold; /* Ezt is hozzáadhatod, ha szeretnéd */
-}
-
 .bet-bank {
   display: flex; /* Flexbox használata a belső elemek (pl. a nyertes üzenet) elrendezéséhez */
   align-items: flex-start; /* Függőlegesen az elem tetejére igazítja a tartalmat */

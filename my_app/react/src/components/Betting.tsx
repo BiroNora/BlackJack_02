@@ -2,7 +2,7 @@ import type { GameStateData } from "../types/game-types";
 import "../styles/betting.css";
 import { formatNumber } from "../utilities/utils";
 import { useEffect, useRef, useState } from "react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 
 interface BettingProps {
   gameState: GameStateData;
@@ -84,6 +84,13 @@ const Betting: React.FC<BettingProps> = ({
     },
   };
 
+  const fadeProps = {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    exit: { opacity: 0 },
+    transition: { duration: 0.8 }, // Egy picit gyorsabb animáció általában profibb érzetet kelt
+  };
+
   return (
     <div className="betting-screen-container">
       <motion.button
@@ -111,9 +118,32 @@ const Betting: React.FC<BettingProps> = ({
           </motion.span>
         </motion.button>
       </div>
-      <div id="bank" className="bank merriweather">
-        Player's bank:{" "}
-        <span className="bank-amount">{formatNumber(tokens)}</span>
+
+      {/* BANK SZEKCIÓ */}
+      <div className="bank merriweather">
+        Player's bank:{"\u00A0"}
+        <div
+          style={{
+            display: "inline-grid",
+            verticalAlign: "bottom",
+            placeItems: "start",
+            width: "5rem",
+          }}
+        >
+          <AnimatePresence mode="popLayout">
+            <motion.span
+              key={formatNumber(tokens)}
+              {...fadeProps}
+              style={{
+                gridArea: "1 / 1",
+                whiteSpace: "nowrap",
+                display: "inline-block", // Biztosítja, hogy legyen kiterjedése
+              }}
+            >
+              {formatNumber(tokens)}
+            </motion.span>
+          </AnimatePresence>
+        </div>
       </div>
 
       <div
