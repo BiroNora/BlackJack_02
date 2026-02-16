@@ -43,7 +43,7 @@ export const initialGameDataState: GameDataState = {
   preRewardTokens: null,
   insPlaced: false,
   showInsLost: false,
-  initDeckLen: null,
+  initDeckLen: 104,
 };
 
 export function gameReducer(state: GameDataState, action: GameAction): GameDataState {

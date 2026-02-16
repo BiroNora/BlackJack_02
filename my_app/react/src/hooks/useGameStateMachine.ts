@@ -531,6 +531,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
     const MainStandTransit = async () => {
       try {
+        savePreActionState();
         const data = await handleApiAction(handleStandAndRewards);
         const response = extractGameStateData(data);
 
