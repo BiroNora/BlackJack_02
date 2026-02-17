@@ -58,7 +58,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         } as GameStateData
       });
 
-      console.log(`>>> Állapotváltás: -> ${newState}`);
+      //console.log(`>>> Állapotváltás: -> ${newState}`);
     },
     [dispatch]
   );
@@ -83,7 +83,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     setIsWFSR(false);
     isProcessingRef.current = false;
 
-    console.log("--- Játék változók alaphelyzetbe állítva ---");
+    //console.log("--- Játék változók alaphelyzetbe állítva ---");
   }, [dispatch]);
 
   const executeAsyncAction = useCallback(async (actionFn: () => Promise<void>) => {
@@ -133,8 +133,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
       const response = extractGameStateData(data);
       if (!response) return;
-      console.log(">>> RECOVERY: response:", response);
-      console.log(">>> RECOVERY: Folytatás fázisa:", response?.target_phase);
+
       transitionToState(response?.target_phase as GameState, response);
     });
   }, [executeAsyncAction, handleApiAction, transitionToState]);
@@ -188,7 +187,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
   const handleStartGame = useCallback(async () => {
     const response = state.gameState;
-    console.log("handleStartGame response: ", response)
+
     if (!response) return;
 
     setIsWFSR(true);
@@ -246,18 +245,12 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       if (!response) return;
 
       if (response.player && response.tokens !== undefined) {
-        dispatch({
-          type: 'SET_BET_SNAPSHOTS',
-          payload: {
-            bet: response.player.bet,
-            tokens: response.tokens
-          }
-        });
+        savePreActionState();
       }
-      console.log("309 response?.target_phase as GameState: ", response?.target_phase as GameState)
+
       transitionToState(response?.target_phase as GameState, response);
     });
-  }, [executeAsyncAction, handleApiAction, transitionToState]);
+  }, [executeAsyncAction, handleApiAction, savePreActionState, transitionToState]);
 
   const handleInsRequest = useCallback(() => {
     executeAsyncAction(async () => {
@@ -293,26 +286,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       const response = extractGameStateData(data);
       if (!response) return;
 
-      /* if (response && response.player) {
-        if (
-          response.aces === true ||
-          (response.player.hand.length === 2 && response.player.sum === 21)
-        ) {
-          console.log(
-            "Speciális eset (Ász/21), sorompó KINYITVA a tranzithoz (false)",
-          );
-          isProcessingRef.current = false;
-
-          const nextState =
-            response.aces === true
-              ? "SPLIT_ACE_TRANSIT"
-              : "SPLIT_NAT21_TRANSIT";
-          transitionToState(nextState, response);
-          return;
-        } else {
-          transitionToState("SPLIT_TURN", response);
-        }
-      } */
       transitionToState(response?.target_phase as GameState, response);
     });
   }, [executeAsyncAction, handleApiAction, savePreActionState, transitionToState]);
@@ -325,18 +298,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       if (!response) return;
 
       transitionToState(response?.target_phase as GameState, response);
-      /* if (response && response.player) {
-        const playerHandValue = response.player.sum;
-        if (playerHandValue >= 21) {
-          if (response.player?.has_hit === 1) {
-            transitionToState("SPLIT_STAND_DOUBLE", response);
-          } else {
-            transitionToState("SPLIT_STAND", response);
-          }
-        } else {
-          transitionToState("SPLIT_TURN", response);
-        }
-      } */
     });
   }, [executeAsyncAction, handleApiAction, transitionToState]);
 
@@ -360,14 +321,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       const response = extractGameStateData(data);
       if (!response) return;
 
-      /* if (data) {
-        if (!isMountedRef.current) return;
-        if (response && response.player && response.tokens) {
-          transitionToState("SPLIT_STAND_DOUBLE", response);
-        } else {
-          transitionToState("SPLIT_TURN", gameState);
-        }
-      } */
       transitionToState(response?.target_phase as GameState, response);
     });
   }, [executeAsyncAction, handleApiAction, transitionToState]);
@@ -391,7 +344,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     isAppInitializedRef.current = true;
 
     isProcessingRef.current = true;
-    console.log("--- INITIALIZING SESSION INDUL ---");
+    //console.log("--- INITIALIZING SESSION INDUL ---");
 
     const initializeApplicationOnLoad = async () => {
       try {
@@ -429,7 +382,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     if (state.gameState.currentGameState !== "SHUFFLING" || isProcessingRef.current) return;
 
     isProcessingRef.current = true;
-    console.log("--- SHUFFLING INDUL ---");
+    //console.log("--- SHUFFLING INDUL ---");
 
     const shufflingAct = async () => {
       try {
@@ -468,7 +421,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     if (state.gameState.currentGameState !== "INIT_GAME" || isProcessingRef.current) return;
 
     isProcessingRef.current = true;
-    console.log("--- INIT_GAME BLOKK INDUL ---");
+    //console.log("--- INIT_GAME BLOKK INDUL ---");
 
     const initGameAct = async () => {
       try {
@@ -480,7 +433,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
         const data = await handleApiAction(startGame);
         const response = extractGameStateData(data);
-        console.log("INIT response: ", response)
+
         if (!response || !isMountedRef.current) {
           isProcessingRef.current = false;
           return;
@@ -508,7 +461,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     if (state.gameState.currentGameState !== "MAIN_STAND" || isProcessingRef.current) return;
 
     isProcessingRef.current = true;
-    console.log("--- MAIN_STAND INDUL ---");
+    //console.log("--- MAIN_STAND INDUL ---");
 
     timeoutIdRef.current = window.setTimeout(() => {
       if (isMountedRef.current) {
@@ -527,7 +480,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
   useEffect(() => {
     if (state.gameState.currentGameState !== "MAIN_STAND_REWARDS_TRANSIT" || isProcessingRef.current) return;
     isProcessingRef.current = true;
-    console.log("--- MAIN_STAND_REWARDS_TRANSIT INDUL ---");
+    //console.log("--- MAIN_STAND_REWARDS_TRANSIT INDUL ---");
 
     const MainStandTransit = async () => {
       try {
@@ -540,11 +493,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           return;
         }
 
-        timeoutIdRef.current = window.setTimeout(() => {
-          if (isMountedRef.current) {
-            transitionToState(response?.target_phase as GameState, response);
-          }
-        }, 200);
+        transitionToState(response?.target_phase as GameState, response);
       } catch (error) {
         console.error("Transit Error:", error);
         isProcessingRef.current = false;
@@ -563,7 +512,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
     isProcessingRef.current = true;
     setIsWFSR(true);
-    console.log(`--- ${state.gameState.currentGameState} LOGIKA INDUL ---`);
+    //console.log(`--- ${state.gameState.currentGameState} LOGIKA INDUL ---`);
     const SplitStand = async () => {
       try {
         if (!isMountedRef.current) return;
@@ -621,7 +570,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
     if (state.gameState.currentGameState !== "SPLIT_NAT21_TRANSIT" || isProcessingRef.current) return;
     isProcessingRef.current = true;
     setIsWFSR(true);
-    console.log("--- SPLIT_NAT21_TRANSIT INDUL ---");
+    //console.log("--- SPLIT_NAT21_TRANSIT INDUL ---");
 
     const SplitNat21Transit = async () => {
       try {
@@ -642,7 +591,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
     isProcessingRef.current = true;
     setIsWFSR(true);
-    console.log("--- SPLIT_ACE_TRANSIT LOGIKA INDUL ---");
+    //console.log("--- SPLIT_ACE_TRANSIT LOGIKA INDUL ---");
 
     const SplitAce21Transit = async () => {
       if (!isMountedRef.current) return;
@@ -782,7 +731,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
     return () => {
       if (timeoutIdRef.current) {
-        console.log("Tisztítás: timeout törölve");
         window.clearTimeout(timeoutIdRef.current);
       }
     };

@@ -1,5 +1,3 @@
-import BetBank from "./components/BetBank";
-import BetBankDelayed from "./components/BetBankDelayed";
 import Cards from "./components/Cards";
 import { ErrorPage } from "./components/ErrorPage";
 import HeaderTitles from "./components/HeaderTitles";
@@ -22,6 +20,7 @@ import { AnimatePresence, motion } from "motion/react";
 import SplitPlayerDealerMasked from "./components/SplitPlayerDealerMasked";
 import { Reloading } from "./components/Reloading";
 import RecoveryDec from "./components/RecoveryDec";
+import UniqueBetBank from "./components/UniqueBetBank";
 
 function App() {
   const {
@@ -136,7 +135,12 @@ function App() {
                       isWFSR={isWFSR}
                     />
                   </div>
-                  <BetBank gameState={gameState} />
+                  <UniqueBetBank
+                    gameState={gameState} // Ez a JUTALMAKKAL MÓDOSÍTOTT állapot
+                    preRewardBet={preRewardBet}
+                    preRewardTokens={preRewardTokens} // Ez a JUTALOM ELŐTTI token érték
+                    isResultPhase={false}
+                  />
                 </div>
               );
             case "MAIN_STAND":
@@ -149,10 +153,11 @@ function App() {
                   <div className="game-action-area-wrapper">
                     <Winner gameState={gameState} />
                   </div>
-                  <BetBankDelayed
-                    finalGameState={gameState} // Ez a JUTALMAKKAL MÓDOSÍTOTT állapot
-                    initialBet={preRewardBet}
-                    initialTokens={preRewardTokens} // Ez a JUTALOM ELŐTTI token érték
+                  <UniqueBetBank
+                    gameState={gameState} // Ez a JUTALMAKKAL MÓDOSÍTOTT állapot
+                    preRewardBet={preRewardBet}
+                    preRewardTokens={preRewardTokens} // Ez a JUTALOM ELŐTTI token érték
+                    isResultPhase={true}
                   />
                 </div>
               );
@@ -169,10 +174,11 @@ function App() {
                   <div className="game-action-area-wrapper">
                     {/* <Winner gameState={gameState} /> */}
                   </div>
-                  <BetBankDelayed
-                    finalGameState={gameState} // Ez a JUTALMAKKAL MÓDOSÍTOTT állapot
-                    initialBet={preRewardBet}
-                    initialTokens={preRewardTokens} // Ez a JUTALOM ELŐTTI token érték
+                  <UniqueBetBank
+                    gameState={gameState} // Ez a JUTALMAKKAL MÓDOSÍTOTT állapot
+                    preRewardBet={preRewardBet}
+                    preRewardTokens={preRewardTokens} // Ez a JUTALOM ELŐTTI token érték
+                    isResultPhase={true}
                   />
                 </div>
               );
@@ -193,7 +199,12 @@ function App() {
                       isWFSR={isWFSR}
                     />
                   </div>
-                  <BetBank gameState={gameState} />
+                  <UniqueBetBank
+                    gameState={gameState} // Ez a JUTALMAKKAL MÓDOSÍTOTT állapot
+                    preRewardBet={preRewardBet}
+                    preRewardTokens={preRewardTokens} // Ez a JUTALOM ELŐTTI token érték
+                    isResultPhase={false}
+                  />
                   <div className="players-area-wrapper">
                     <SplitPlayers gameState={gameState} />
                   </div>
@@ -209,7 +220,12 @@ function App() {
                   <div className="game-action-area-wrapper">
                     <SplitPlayDisabledButtons gameState={gameState} />
                   </div>
-                  <BetBank gameState={gameState} />
+                  <UniqueBetBank
+                    gameState={gameState} // Ez a JUTALMAKKAL MÓDOSÍTOTT állapot
+                    preRewardBet={preRewardBet}
+                    preRewardTokens={preRewardTokens} // Ez a JUTALOM ELŐTTI token érték
+                    isResultPhase={false}
+                  />
                   <div className="players-area-wrapper">
                     <SplitPlayers gameState={gameState} />
                   </div>
@@ -225,7 +241,12 @@ function App() {
                   <div className="game-action-area-wrapper">
                     <SplitPlayDoubleDisabledButtons gameState={gameState} />
                   </div>
-                  <BetBank gameState={gameState} />
+                  <UniqueBetBank
+                    gameState={gameState} // Ez a JUTALMAKKAL MÓDOSÍTOTT állapot
+                    preRewardBet={preRewardBet}
+                    preRewardTokens={preRewardTokens} // Ez a JUTALOM ELŐTTI token érték
+                    isResultPhase={false}
+                  />
                   <div className="players-area-wrapper">
                     <SplitPlayers gameState={gameState} />
                   </div>
@@ -241,7 +262,12 @@ function App() {
                   <div className="game-action-area-wrapper">
                     <SplitPlayDisabledButtons gameState={gameState} />
                   </div>
-                  <BetBank gameState={gameState} />
+                  <UniqueBetBank
+                    gameState={gameState} // Ez a JUTALMAKKAL MÓDOSÍTOTT állapot
+                    preRewardBet={preRewardBet}
+                    preRewardTokens={preRewardTokens} // Ez a JUTALOM ELŐTTI token érték
+                    isResultPhase={false}
+                  />
                   <div className="players-area-wrapper">
                     <SplitPlayers gameState={gameState} />
                   </div>
@@ -257,10 +283,11 @@ function App() {
                   <div className="game-action-area-wrapper">
                     {/* <SplitWinner gameState={gameState} /> */}
                   </div>
-                  <BetBankDelayed
-                    finalGameState={gameState} // Ez a JUTALMAKKAL MÓDOSÍTOTT állapot
-                    initialBet={preRewardBet}
-                    initialTokens={preRewardTokens} // Ez a JUTALOM ELŐTTI token érték
+                  <UniqueBetBank
+                    gameState={gameState} // Ez a JUTALMAKKAL MÓDOSÍTOTT állapot
+                    preRewardBet={preRewardBet}
+                    preRewardTokens={preRewardTokens} // Ez a JUTALOM ELŐTTI token érték
+                    isResultPhase={true}
                   />
                   <div className="players-area-wrapper">
                     <SplitPlayers gameState={gameState} />
@@ -277,10 +304,11 @@ function App() {
                   <div className="game-action-area-wrapper">
                     <SplitWinner gameState={gameState} />
                   </div>
-                  <BetBankDelayed
-                    finalGameState={gameState} // Ez a JUTALMAKKAL MÓDOSÍTOTT állapot
-                    initialBet={preRewardBet}
-                    initialTokens={preRewardTokens} // Ez a JUTALOM ELŐTTI token érték
+                  <UniqueBetBank
+                    gameState={gameState} // Ez a JUTALMAKKAL MÓDOSÍTOTT állapot
+                    preRewardBet={preRewardBet}
+                    preRewardTokens={preRewardTokens} // Ez a JUTALOM ELŐTTI token érték
+                    isResultPhase={true}
                   />
                   <div className="players-area-wrapper">
                     <SplitPlayers gameState={gameState} />
@@ -297,7 +325,12 @@ function App() {
                   <div className="game-action-area-wrapper">
                     <SplitPlayDisabledButtons gameState={gameState} />
                   </div>
-                  <BetBank gameState={gameState} />
+                  <UniqueBetBank
+                    gameState={gameState} // Ez a JUTALMAKKAL MÓDOSÍTOTT állapot
+                    preRewardBet={preRewardBet}
+                    preRewardTokens={preRewardTokens} // Ez a JUTALOM ELŐTTI token érték
+                    isResultPhase={false}
+                  />
                   <div className="players-area-wrapper">
                     <SplitPlayers gameState={gameState} />
                   </div>

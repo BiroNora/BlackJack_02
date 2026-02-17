@@ -1,5 +1,5 @@
 import React, { type JSX } from "react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { states, type GameStateData } from "../types/game-types";
 import "../styles/playerDealer.css";
 
@@ -108,7 +108,7 @@ const PlayerDealer: React.FC<TableProps> = ({ gameState }) => {
   };
 
   return (
-    <div className="player-dealer-area">
+    <div >
       <div id="dealer-hand" className="play">
         <motion.div
           key={`d-hand-${dealerHand.length}`}
@@ -143,15 +143,28 @@ const PlayerDealer: React.FC<TableProps> = ({ gameState }) => {
           <span className="label-text1">{player.sum}</span>
         </div>
         <div className="score-area-wrapper">
-          {shouldShowScore && (
-            <motion.span
-              key={`p-state-${p_state}`}
-              {...fadeProps1}
-              className="score-mood merriweather5grey"
-            >
-              {p_state}
-            </motion.span>
-          )}
+          <AnimatePresence mode="wait">
+            {" "}
+            {/* Ajánlott a sima váltáshoz */}
+            {shouldShowScore ? (
+              <motion.span
+                key={`p-state-${p_state}`}
+                {...fadeProps1}
+                className="score-mood merriweather5grey"
+              >
+                {p_state}
+              </motion.span>
+            ) : (
+              /* Ez a láthatatlan span megtartja a helyet */
+              <motion.span
+                key="empty-state"
+                initial={{ opacity: 0 }}
+                className="score-mood"
+              >
+                {"\u00A0"}
+              </motion.span>
+            )}
+          </AnimatePresence>
         </div>
         <div className="hand hand-area-wrapper">{formattedPlayerHand}</div>
       </div>

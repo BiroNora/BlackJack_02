@@ -14,7 +14,7 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  min-height: 100vh; /* Legalább a teljes viewport magasságát foglalja el */
+  min-height: 100dvh; /* Legalább a teljes viewport magasságát foglalja el */
   box-sizing: border-box; /* Fontos: padding és border is beleszámít a szélességbe */
   margin: 0 auto; /* Középre igazítás és nincs felesleges margó */
   position: relative;
@@ -243,9 +243,7 @@ button:disabled {
   align-items: flex-start; /* Függőlegesen középre igazítja az elemeket */
   justify-content: center;
   width: 100%;
-  padding-top: var(--extra-vertical-padding02);
-  padding-bottom: var(--extra-vertical-padding05);
-  min-height: 15rem;
+  min-height: 16rem;
   box-sizing: border-box;
 }
 
@@ -254,9 +252,8 @@ button:disabled {
   align-items: flex-start;
   justify-content: center;
   width: 100%;
-  padding-top: var(--extra-vertical-padding02);
   box-sizing: border-box;
-  min-height: 4rem;
+  min-height: 5rem;
 }
 
 .players-area-wrapper {
@@ -270,7 +267,7 @@ button:disabled {
 }
 
 .hand-area-wrapper {
-  min-height: 2.5rem;
+  min-height: 2.8rem;
 }
 
 .band-area-wrapper {
@@ -282,7 +279,7 @@ button:disabled {
 }
 
 .score-area-wrapper {
-  min-height: 1.8rem;
+  min-height: 2rem;
 }
 
 .winners {

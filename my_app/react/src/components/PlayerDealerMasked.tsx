@@ -78,18 +78,21 @@ const PlayerDealerMasked: React.FC<TableProps> = ({
 
   const formattedPlayerHand = formatHand(playerHand);
   const formattedDealerHand = formatHand(dealerHand);
-
+  
   const fadeProps = {
     initial: { opacity: 0 },
-    animate: { opacity: 1 },
+    animate: {
+      // 0: láthatatlan, 1: látható, 1: még mindig látható (várakozás), 0: eltűnik
+      opacity: [0, 1, 1, 0],
+    },
     transition: {
-      duration: 1,
-      delay: 0.3,
+      duration: 3.5, // A teljes folyamat hossza (megjelenés + várakozás + eltűnés)
+      times: [0, 0.3, 0.8, 1], // Mikor történjenek a fenti állapotok (0-tól 1-ig skálázva)
     },
   };
 
   return (
-    <div className="player-dealer-area">
+    <div>
       <div id="dealer-hand" className="play">
         <div className="hand hand-area-wrapper">{formattedDealerHand}</div>
         <div className="score-area-wrapper">

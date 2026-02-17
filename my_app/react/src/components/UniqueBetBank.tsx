@@ -1,41 +1,53 @@
-// src/components/BetBankDelayed.tsx
-
+import { useEffect, useState } from "react";
 import type { GameStateData } from "../types/game-types";
 import { formatNumber } from "../utilities/utils";
-import "../styles/betting.css";
-import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
-interface BetBankDelayedProps {
-  finalGameState: GameStateData; // Ez a prop most már helyesen van definiálva
-  initialBet: number | null;
-  initialTokens: number | null;
+interface UniqueBetBankProps {
+  gameState: GameStateData;
+  isResultPhase: boolean; // Új prop, amivel jelezzük a várakozást
+  preRewardBet?: number | null;
+  preRewardTokens?: number | null;
 }
 
-const BetBankDelayed: React.FC<BetBankDelayedProps> = ({
-  finalGameState,
-  initialBet,
-  initialTokens,
+const UniqueBetBank: React.FC<UniqueBetBankProps> = ({
+  gameState,
+  isResultPhase,
+  preRewardBet,
+  preRewardTokens,
 }) => {
-  const [displayedBet, setDisplayedBet] = useState<number | null>(initialBet);
-  const [displayedTokens, setDisplayedTokens] = useState<number | null>(
-    initialTokens,
-  );
+  // Belső állapot a megjelenített értékeknek
+  const [displayedBet, setDisplayBet] = useState(gameState.player.bet);
+  const [displayedTokens, setDisplayTokens] = useState(gameState.tokens);
 
   useEffect(() => {
-    setDisplayedTokens(initialTokens);
-    setDisplayedBet(initialBet);
+    if (
+      isResultPhase &&
+      preRewardBet !== undefined &&
+      preRewardTokens !== undefined
+    ) {
+      // 1. Eredmény fázisban először beállítjuk a "snapshot" (régi) értékeket
+      setDisplayBet(preRewardBet ?? gameState.player.bet);
+      setDisplayTokens(preRewardTokens ?? gameState.tokens);
 
-    const timeoutId: number = setTimeout(() => {
-      //console.log("--- DEBUG --- BetBankDelayed: Késleltetés utáni frissítés.");
-      setDisplayedTokens(finalGameState.tokens);
-      setDisplayedBet(finalGameState.player.bet);
-    }, 2000);
-
-    return () => {
-      clearTimeout(timeoutId);
-    };
-  }, [finalGameState, initialBet, initialTokens]);
+      // 2. Majd 2 másodperc múlva frissítünk a végsőre
+      const timer = setTimeout(() => {
+        setDisplayBet(gameState.player.bet);
+        setDisplayTokens(gameState.tokens);
+      }, 2000);
+      return () => clearTimeout(timer);
+    } else {
+      // 3. Játék közben (MAIN_TURN stb.) azonnal frissítünk, nincs várakozás
+      setDisplayBet(gameState.player.bet);
+      setDisplayTokens(gameState.tokens);
+    }
+  }, [
+    gameState.player.bet,
+    gameState.tokens,
+    isResultPhase,
+    preRewardBet,
+    preRewardTokens,
+  ]);
 
   const tokensToDisplay =
     displayedTokens !== null ? formatNumber(displayedTokens) : "---";
@@ -46,7 +58,7 @@ const BetBankDelayed: React.FC<BetBankDelayedProps> = ({
     initial: { opacity: 0 },
     animate: { opacity: 1 },
     exit: { opacity: 0 },
-    transition: { duration: 0.7 }, // Egy picit gyorsabb animáció általában profibb érzetet kelt
+    transition: { duration: 0.4 }, // Egy picit gyorsabb animáció általában profibb érzetet kelt
   };
 
   return (
@@ -98,4 +110,4 @@ const BetBankDelayed: React.FC<BetBankDelayedProps> = ({
   );
 };
 
-export default BetBankDelayed;
+export default UniqueBetBank;

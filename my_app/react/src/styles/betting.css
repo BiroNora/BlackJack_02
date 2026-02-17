@@ -5,6 +5,10 @@
   display: flex;
 }
 
+.cards {
+  min-height: 1.2rem;
+}
+
 .betting-screen-container {
   padding-top: var(--extra-vertical-padding1);
 }
