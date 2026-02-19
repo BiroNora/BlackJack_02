@@ -78,6 +78,7 @@ export type SessionInitResponse = {
   tokens: number;
   game_state: GameStateForClient;
   game_state_hint: "USER_SESSION_INITIALIZED";
+  total_initial_cards: number;
 };
 
 export type ErrorResponse = {

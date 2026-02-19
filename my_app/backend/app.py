@@ -326,6 +326,7 @@ def initialize_session():
                 "tokens": user.tokens,
                 "game_state": custom_game_state,
                 "game_state_hint": "USER_SESSION_INITIALIZED",
+                "total_initial_cards": Game.TOTAL_INITIAL_CARDS,
             }
         ),
         200,
@@ -790,6 +791,11 @@ def force_restart_by_client_id(user):
 @login_required
 @with_game_state
 def recover_game_state(user, game):
+    game.is_session_init = False
+    user.current_game_state = game.serialize()
+    
+    db.session.commit()
+
     return (
         jsonify(
             {

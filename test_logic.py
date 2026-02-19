@@ -1,4 +1,4 @@
-from my_app.backend.game import BJ_IMMEDIATE_STOP, Game
+from my_app.backend.game import Game
 from my_app.backend.phase_state import PhaseState
 from my_app.backend.winner_state import WinnerState
 from my_app.backend.game_serializer import GameSerializer
@@ -89,14 +89,14 @@ def run_diagnostics():
         # Ez az a logika, amit tesztelünk:
         game.target_phase = (
             PhaseState.MAIN_STAND
-            if game.natural_21 in BJ_IMMEDIATE_STOP
+            if game.natural_21 in Game.BJ_IMMEDIATE_STOP
             else PhaseState.MAIN_TURN
         )
 
         # Maszkolt nat_21 szűrés
         masked_nat21 = (
             game.natural_21
-            if game.natural_21 in BJ_IMMEDIATE_STOP
+            if game.natural_21 in Game.BJ_IMMEDIATE_STOP
             else WinnerState.NONE
         )
 
@@ -191,7 +191,7 @@ def test_strict_mode_protection(game):
         print("\n✅ OK: A védelem vizsgázott! A dupla hívás nem rontotta el a számlálót.")
     else:
         print("\n❌ HIBA: A védelem átszakadt vagy nem váltottunk át a H-002-re!")
-        
+
 if __name__ == "__main__":
     run_diagnostics()
 

@@ -1,6 +1,6 @@
 from typing import Any, Dict
-from my_app.backend.game import TOTAL_INITIAL_CARDS
 from my_app.backend.phase_state import PhaseState
+from my_app.backend.game import Game
 
 
 class GameSerializer:
@@ -67,7 +67,7 @@ class GameSerializer:
         # Ha nem aktív a kör és most indult a session, akkor kényszerítjük a 104-et,
         # minden más esetben a valódi deck hosszt használjuk.
         d_len = (
-            TOTAL_INITIAL_CARDS
+            Game.TOTAL_INITIAL_CARDS
             if (not game.is_round_active and game.is_session_init)
             else game.get_deck_len()
         )
@@ -75,7 +75,7 @@ class GameSerializer:
         # A d_len alapján határozzuk meg a fázist
         calc_phase = (
             PhaseState.SHUFFLING
-            if (d_len == TOTAL_INITIAL_CARDS or d_len < 60)
+            if (d_len == Game.TOTAL_INITIAL_CARDS or d_len < 60)
             else PhaseState.INIT_GAME
         )
 

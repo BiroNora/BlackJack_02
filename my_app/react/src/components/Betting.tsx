@@ -139,7 +139,7 @@ const Betting: React.FC<BettingProps> = ({
                 whiteSpace: "nowrap",
                 display: "inline-block", // Biztosítja, hogy legyen kiterjedése
               }}
-            >
+            > {"\u00A0"}
               {formatNumber(tokens)}
             </motion.span>
           </AnimatePresence>

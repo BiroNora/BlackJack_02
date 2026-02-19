@@ -9,14 +9,14 @@
   min-height: 1.2rem;
   display: flex;
   font-weight: 600;
-  width: 1.5rem; 
+  width: 1.2rem;
   justify-content: space-between; /* A két szélre tolja őket */
   align-items: center;
 }
 
 .deck-count {
   display: inline-block;
-  min-width: 1.5rem; /* Elég hely 3 karakternek (100) */
+  min-width: 1.2rem; /* Elég hely 3 karakternek (100) */
   text-align: right; /* A szám a saját blokkján belül jobbra igazodik */
   margin-left: 0.5rem; /* Ez a "kis távolság" a szöveg és a szám között */
 }

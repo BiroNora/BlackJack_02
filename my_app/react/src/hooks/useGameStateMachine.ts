@@ -133,7 +133,11 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
       const response = extractGameStateData(data);
       if (!response) return;
-
+      dispatch({
+          type: 'SET_DECK_LEN',
+          payload: response.deck_len ?? null
+        });
+        
       transitionToState(response?.target_phase as GameState, response);
     });
   }, [executeAsyncAction, handleApiAction, transitionToState]);
@@ -358,8 +362,17 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
         if (!isMountedRef.current) return;
 
-        const { tokens, game_state } = initData as SessionInitResponse;
+        const { tokens, game_state, total_initial_cards } = initData as SessionInitResponse;
         const nextPhase = game_state.target_phase as GameState;
+        dispatch({
+          type: 'SET_CONFIG',
+          payload: { totalInitialCards: total_initial_cards }
+        });
+
+        dispatch({
+          type: 'SET_DECK_LEN',
+          payload: game_state.deck_len
+        });
 
         // Itt egyetlen hívással lerendezzük az adatot és a fázisváltást is a Reducerben
         transitionToState(nextPhase, { tokens, ...game_state });
@@ -388,6 +401,11 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       try {
         const data = await handleApiAction(getShuffling);
         const response = extractGameStateData(data);
+
+        console.log("SHUFFLING response: ", response)
+
+        const currentDeckLen = response?.deck_len || 104;
+        dispatch({ type: 'SET_DECK_LEN', payload: currentDeckLen });
 
         if (response) {
 

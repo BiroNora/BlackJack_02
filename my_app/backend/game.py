@@ -9,17 +9,18 @@ from my_app.backend.hand_state import HandState
 from my_app.backend.phase_state import PhaseState
 from my_app.backend.winner_state import WinnerState
 
-NONE = 0
-NUM_DECKS = 2
-CARDS_IN_DECK = 52
-TOTAL_INITIAL_CARDS = NUM_DECKS * CARDS_IN_DECK  # 104
-BJ_IMMEDIATE_STOP = {WinnerState.BLACKJACK_PLAYER_WON, WinnerState.BLACKJACK_PUSH}
 
 
 class Game:
+    NONE = 0
+    NUM_DECKS = 2
+    CARDS_IN_DECK = 52
+    TOTAL_INITIAL_CARDS = NUM_DECKS * CARDS_IN_DECK  # 104
+    BJ_IMMEDIATE_STOP = {WinnerState.BLACKJACK_PLAYER_WON, WinnerState.BLACKJACK_PUSH}
+
     def __init__(self):
         self.player: Dict[str, Any] = {
-            "id": NONE,
+            "id": Game.NONE,
             "hand": [],
             "sum": 0,
             "hand_state": HandState.NONE,
@@ -41,7 +42,7 @@ class Game:
             "natural_21": WinnerState.NONE,
         }
         self.split_player: Dict[str, Any] = {
-            "id": NONE,
+            "id": Game.NONE,
             "hand": [],
             "sum": 0,
             "hand_state": HandState.NONE,
@@ -60,10 +61,10 @@ class Game:
         self.split_req: int = 0
         self.unmasked_sum_sent = False
         self.suits = ["♥", "♦", "♣", "♠"]
-        # self.ranks = ["A", "K", "Q", "J", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
-        self.ranks = ["A", "K", "Q", "J", "9", "10"]
+        self.ranks = ["A", "K", "Q", "J", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+        # self.ranks = ["A", "K", "K", "K", "9", "10"]
         self.deck = []
-        self.deck_len_init = TOTAL_INITIAL_CARDS
+        self.deck_len_init = Game.TOTAL_INITIAL_CARDS
         self.bet: int = 0
         self.bet_list = []
         self.is_round_active = False
@@ -75,12 +76,12 @@ class Game:
     def initialize_new_round(self):
         self.clear_up()
 
-        # card1 = self.deck.pop(0)
+        card1 = self.deck.pop(0)
         card2 = self.deck.pop(0)
-        # card3 = self.deck.pop(0)
+        card3 = self.deck.pop(0)
         card4 = self.deck.pop(0)
-        card1 = "♥K"
-        card3 = "♣Q"
+        # card1 = "♥K"
+        # card3 = "♣Q"
         # card2 = "♦5"
         # card4 = "♣A"
         player_hand = [card1, card3]
@@ -109,7 +110,7 @@ class Game:
         self.target_phase = PhaseState.INIT_GAME
         self.pre_phase = (
             PhaseState.MAIN_STAND_REWARDS_TRANSIT
-            if self.natural_21 in BJ_IMMEDIATE_STOP
+            if self.natural_21 in Game.BJ_IMMEDIATE_STOP
             else PhaseState.MAIN_TURN
         )
 
@@ -131,7 +132,7 @@ class Game:
             "can_insure": can_insure,
             "nat_21": (
                 self.natural_21
-                if self.natural_21 in BJ_IMMEDIATE_STOP
+                if self.natural_21 in Game.BJ_IMMEDIATE_STOP
                 else WinnerState.NONE
             ),  # Only 1/2/0
         }
@@ -264,7 +265,7 @@ class Game:
         self.dealer_unmasked["sum"] = count
         self.dealer_unmasked["hand_state"] = self.hand_state(count, False)
         self.player["hand_state"] = self.hand_state(self.player["sum"], True)
-        self.winner = NONE
+        self.winner = Game.NONE
         self.winner = self.winner_state()
 
         self.target_phase = (
@@ -491,7 +492,7 @@ class Game:
 
     def clear_up(self):
         self.player: Dict[str, Any] = {
-            "id": NONE,
+            "id": Game.NONE,
             "hand": [],
             "sum": 0,
             "hand_state": HandState.NONE,
@@ -513,7 +514,7 @@ class Game:
             "natural_21": WinnerState.NONE,
         }
         self.split_player: Dict[str, Any] = {
-            "id": NONE,
+            "id": Game.NONE,
             "hand": [],
             "sum": 0,
             "hand_state": HandState.NONE,
