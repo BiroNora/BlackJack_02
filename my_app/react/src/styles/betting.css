@@ -48,6 +48,30 @@
   font-weight: 500;
 }
 
+.bank2 {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  gap: 0.5vw; /* A jelek közötti távolság is a szélességtől függ */
+  width: 100%;
+  justify-content: center; /* Mobilon jobb a középre igazítás */
+  white-space: nowrap; /* Tilos a sortörés! */
+
+  /* A titkos szósz: a szélesség 4%-a legyen a betűméret,
+     de minimum 0.8rem és maximum 1.8rem */
+  font-size: clamp(1rem, 4vw, 1.8rem);
+
+  width: 100%;
+  overflow: hidden; /* Biztonsági háló */
+  padding-top: var(--extra-vertical-padding1);
+}
+
+.bank3 {
+  padding-top: var(--extra-vertical-padding1);
+  padding-bottom: var(--extra-vertical-padding02);
+  font-size: clamp(1.2rem, 1.2vw, 1.8rem);
+}
+
 .bet-bank {
   display: flex; /* Flexbox használata a belső elemek (pl. a nyertes üzenet) elrendezéséhez */
   align-items: flex-start; /* Függőlegesen az elem tetejére igazítja a tartalmat */
