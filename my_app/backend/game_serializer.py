@@ -64,15 +64,12 @@ class GameSerializer:
 
     @staticmethod
     def serialize_for_client_bets(game) -> Dict[str, Any]:
-        # Ha nem aktív a kör és most indult a session, akkor kényszerítjük a 104-et,
-        # minden más esetben a valódi deck hosszt használjuk.
         d_len = (
             Game.TOTAL_INITIAL_CARDS
             if (not game.is_round_active and game.is_session_init)
             else game.get_deck_len()
         )
 
-        # A d_len alapján határozzuk meg a fázist
         calc_phase = (
             PhaseState.SHUFFLING
             if (d_len == Game.TOTAL_INITIAL_CARDS or d_len < 60)

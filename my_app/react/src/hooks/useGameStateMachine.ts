@@ -137,7 +137,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
           type: 'SET_DECK_LEN',
           payload: response.deck_len ?? null
         });
-        
+
       transitionToState(response?.target_phase as GameState, response);
     });
   }, [executeAsyncAction, handleApiAction, transitionToState]);
@@ -402,13 +402,10 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         const data = await handleApiAction(getShuffling);
         const response = extractGameStateData(data);
 
-        console.log("SHUFFLING response: ", response)
-
-        const currentDeckLen = response?.deck_len || 104;
+        const currentDeckLen = response?.deck_len ?? state.totalInitialCards;
         dispatch({ type: 'SET_DECK_LEN', payload: currentDeckLen });
 
         if (response) {
-
           // A setTimeout ID-t elmentjük, hogy törölhessük ha kell
           timeoutIdRef.current = window.setTimeout(() => {
             if (isMountedRef.current) {
@@ -432,7 +429,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         window.clearTimeout(timeoutIdRef.current);
       }
     };
-  }, [handleApiAction, state.gameState.currentGameState, transitionToState]);
+  }, [handleApiAction, state.gameState.currentGameState, state.totalInitialCards, transitionToState]);
 
   // --- INIT_GAME ---
   useEffect(() => {

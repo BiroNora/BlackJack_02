@@ -14,7 +14,7 @@ def run_diagnostics():
 
     # Teszt esetek: (leírás, deck_méret, is_active, is_init, elvárt_pre)
     client_bet_tests = [
-        ("Teli pakli, új session", 104, False, True, "SHUFFLING"),
+        ("Teli pakli, új session", Game.TOTAL_INITIAL_CARDS, False, True, "SHUFFLING"),
         ("Normál pakli, folyamatban", 80, False, False, "INIT_GAME"),
         ("Kevés lap, keverni kell", 55, False, False, "SHUFFLING"),
         ("Aktív kör (valódi hosszt néz)", 55, True, False, "SHUFFLING"),
