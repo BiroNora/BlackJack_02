@@ -352,7 +352,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
 
     const initializeApplicationOnLoad = async () => {
       try {
-        const minLoadingTimePromise = new Promise((resolve) => setTimeout(resolve, 700));
+        const minLoadingTimePromise = new Promise((resolve) => setTimeout(resolve, 6000));
         const initializationPromise = handleApiAction(initializeSessionAPI);
 
         const [initData] = await Promise.all([
@@ -412,7 +412,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
               isProcessingRef.current = false;
               transitionToState(response?.target_phase as GameState, response);
             }
-          }, 1000);
+          }, 4000);
         }
       } catch {
         if (isMountedRef.current) {
