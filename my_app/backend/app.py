@@ -22,7 +22,10 @@ MINIMUM_BET = 1
 # =========================================================================
 # FLASK APPLICATION BASICS
 # =========================================================================
-app = Flask(__name__, static_folder="../react/dist", template_folder="../react/dist")
+base_dir = os.path.dirname(os.path.abspath(__file__))
+static_path = os.path.join(base_dir, "my_app", "react", "dist")
+
+app = Flask(__name__, static_folder=static_path, template_folder=static_path)
 app.config["SECRET_KEY"] = os.environ.get(
     "FLASK_SECRET_KEY", "default-dev-secret-key-NEVER-USE-IN-PROD"
 )
@@ -793,7 +796,7 @@ def force_restart_by_client_id(user):
 def recover_game_state(user, game):
     game.is_session_init = False
     user.current_game_state = game.serialize()
-    
+
     db.session.commit()
 
     return (
