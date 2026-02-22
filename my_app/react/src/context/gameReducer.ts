@@ -37,7 +37,6 @@ export const initialGameDataState: GameDataState = {
     bet: 0,
     bet_list: [],
     is_round_active: false,
-    has_rewards: false,
     target_phase: "LOADING",
     pre_phase: "BETTING",
   } as GameStateData,

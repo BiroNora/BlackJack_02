@@ -165,7 +165,6 @@ class GameSerializer:
             "deck_len": game.get_deck_len(),
             "bet": game.bet,
             "is_round_active": game.is_round_active,
-            "has_rewards": game.has_rewards,
             "target_phase": game.get_target_phase().value,
             "pre_phase": game.get_pre_phase().value if game.get_pre_phase() else None,
         }

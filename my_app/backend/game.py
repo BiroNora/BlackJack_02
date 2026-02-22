@@ -68,7 +68,6 @@ class Game:
         self.bet: int = 0
         self.bet_list = []
         self.is_round_active = False
-        self.has_rewards = False
         self.target_phase = PhaseState.LOADING
         self.pre_phase = PhaseState.NONE
         self.is_session_init = False
@@ -288,7 +287,6 @@ class Game:
 
         self.set_bet_to_null()
         self.set_bet_list_to_null()
-        self.has_rewards = True
         self.is_round_active = bool(self.players)
 
         return reward_amount
@@ -532,7 +530,6 @@ class Game:
         self.split_req = 0
         self.unmasked_sum_sent = False
         self.is_round_active = False
-        self.has_rewards = False
         self.target_phase = PhaseState.BETTING
         self.pre_phase = PhaseState.NONE
 
@@ -657,7 +654,6 @@ class Game:
             "bet": self.bet,
             "bet_list": self.bet_list,
             "is_round_active": self.is_round_active,
-            "has_rewards": self.has_rewards,
             "target_phase": self.get_target_phase().value,
             "pre_phase": self.get_pre_phase().value,
             "is_session_init": self.is_session_init,
@@ -683,7 +679,6 @@ class Game:
         game.bet = data["bet"]
         game.bet_list = data["bet_list"]
         game.is_round_active = data.get("is_round_active", False)
-        game.has_rewards = data.get("has_rewards", False)
         raw_pre = data.get("pre_phase")
         raw_target = data.get("target_phase")
         if raw_target:
