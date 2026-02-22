@@ -33,7 +33,6 @@ export interface GameStateData {
   tokens: number;
   bet: number;
   bet_list: number[];
-  is_round_active: boolean;
   target_phase: GameState | null;
   pre_phase: GameState | null;
 }
@@ -65,7 +64,6 @@ export interface DealerUnmaskedData {
 
 export type GameStateForClient = {
   deck_len: number;
-  is_round_active: boolean;
   target_phase: GameState | null;
 };
 

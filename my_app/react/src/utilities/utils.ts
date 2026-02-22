@@ -75,7 +75,6 @@ export function extractGameStateData1(
       tokens: token,
       bet: rawGameState.bet as number,
       bet_list: rawGameState.bet_list as number[],
-      is_round_active: rawGameState.is_round_active as boolean,
     };
     return processedData;
   } catch (e) {

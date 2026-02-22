@@ -46,7 +46,6 @@ class GameSerializer:
     def serialize_for_client_init(game) -> Dict[str, Any]:
         return {
             "deck_len": game.deck_len_init if len(game.deck) == 0 else len(game.deck),
-            "is_round_active": game.is_round_active,
             "target_phase": game.get_target_phase().value,
             "pre_phase": PhaseState.NONE.value,
         }
@@ -57,7 +56,6 @@ class GameSerializer:
             "bet": 0,
             "bet_list": [],
             "deck_len": game.deck_len_init,
-            "is_round_active": False,
             "target_phase": PhaseState.BETTING.value,
             "pre_phase": PhaseState.NONE.value,
         }
@@ -99,7 +97,6 @@ class GameSerializer:
             "dealer_masked": game.dealer_masked,
             "deck_len": game.get_deck_len(),
             "bet": game.bet,
-            "is_round_active": game.is_round_active,
             "target_phase": PhaseState.MAIN_TURN.value if is_recovery else game.get_target_phase().value,
         }
 
@@ -110,7 +107,6 @@ class GameSerializer:
             "dealer_masked": game.dealer_masked,
             "deck_len": game.get_deck_len(),
             "bet": game.bet,
-            "is_round_active": game.is_round_active,
             "target_phase": game.get_target_phase().value,
             "pre_phase": game.get_pre_phase().value,
         }
@@ -122,7 +118,6 @@ class GameSerializer:
             "natural_21": game.natural_21,
             "deck_len": game.get_deck_len(),
             "bet": game.bet,
-            "is_round_active": game.is_round_active,
             "target_phase": game.get_target_phase().value,
             "pre_phase": game.get_pre_phase().value if game.get_pre_phase() else None,
 
@@ -138,7 +133,6 @@ class GameSerializer:
         return {
             "player": game.player,
             "deck_len": game.get_deck_len(),
-            "is_round_active": game.is_round_active,
             "target_phase": game.get_target_phase().value,
         }
 
@@ -150,7 +144,6 @@ class GameSerializer:
             "deck_len": game.get_deck_len(),
             "bet": game.bet,
             "winner": game.winner,
-            "is_round_active": game.is_round_active,
             "target_phase": game.get_target_phase().value,
         }
 
@@ -164,7 +157,6 @@ class GameSerializer:
             "split_req": game.split_req,
             "deck_len": game.get_deck_len(),
             "bet": game.bet,
-            "is_round_active": game.is_round_active,
             "target_phase": game.get_target_phase().value,
             "pre_phase": game.get_pre_phase().value if game.get_pre_phase() else None,
         }
@@ -178,7 +170,6 @@ class GameSerializer:
             "split_req": game.split_req,
             "deck_len": game.get_deck_len(),
             "bet": game.bet,
-            "is_round_active": game.is_round_active,
             "target_phase": game.get_target_phase().value,
             "pre_phase": game.get_pre_phase().value if game.get_pre_phase() else None,
         }
@@ -202,7 +193,6 @@ class GameSerializer:
             "split_req": game.split_req,
             "deck_len": game.get_deck_len(),
             "bet": game.bet,
-            "is_round_active": game.is_round_active,
             "target_phase": game.get_target_phase().value,
             "pre_phase": game.get_pre_phase().value if game.get_pre_phase() else None,
         }
@@ -217,7 +207,6 @@ class GameSerializer:
             "split_req": game.split_req,
             "deck_len": game.get_deck_len(),
             "bet": game.bet,
-            "is_round_active": game.is_round_active,
             "target_phase": game.get_target_phase().value,
             "pre_phase": game.get_pre_phase().value if game.get_pre_phase() else None,
         }

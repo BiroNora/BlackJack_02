@@ -708,7 +708,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
                 deck_len: deck_len,       // Megtartjuk a pakli állapotát
                 currentGameState: pre_phase || "BETTING",
                 bet: 0,
-                is_round_active: false,
                 players: {},
                 winner: 0
               };
