@@ -315,7 +315,6 @@ def initialize_session():
 
     custom_game_state = {
         "deck_len": game_instance.deck_len_init,
-        "is_round_active": game_instance.is_round_active,
         "target_phase": calculated_phase,
         "bet": game_instance.bet,
     }
