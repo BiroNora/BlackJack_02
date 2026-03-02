@@ -75,6 +75,7 @@ const PlayerDealerMasked: React.FC<TableProps> = ({
   const formattedPlayerHand = formatHand(playerHand);
   const formattedDealerHand = formatHand(dealerHand);
 
+
   const fadeProps = {
     initial: { opacity: 0 },
     animate: {
