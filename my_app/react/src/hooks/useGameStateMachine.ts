@@ -768,6 +768,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
             if (response) {
               timeoutIdRef.current = window.setTimeout(() => {
                 if (isMountedRef.current) {
+                  resetGameVariables();
                   transitionToState("RESTART_GAME", response);
                 }
               }, 5000);
@@ -782,7 +783,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       };
       HandleOutOfTokens();
     }
-  }, [state.gameState.currentGameState, handleApiAction, transitionToState]);
+  }, [state.gameState.currentGameState, handleApiAction, transitionToState, resetGameVariables]);
 
   // --- RESTART_GAME ---
   useEffect(() => {
@@ -793,7 +794,6 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         try {
           timeoutIdRef.current = window.setTimeout(() => {
             if (isMountedRef.current) {
-              resetGameVariables();
               transitionToState("RELOADING", state.gameState);
             }
           }, 5000);
@@ -827,6 +827,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
             if (!isMountedRef.current) return;
             const response = extractGameStateData(data);
             if (response) {
+              resetGameVariables();
               transitionToState("RELOADING", response);
             }
           }
@@ -840,7 +841,7 @@ export function useGameStateMachine(): GameStateMachineHookResult {
       };
       ForceRestart();
     }
-  }, [state.gameState.currentGameState, handleApiAction, transitionToState]);
+  }, [state.gameState.currentGameState, handleApiAction, transitionToState, resetGameVariables]);
 
   // --- RELOADING ---
   useEffect(() => {

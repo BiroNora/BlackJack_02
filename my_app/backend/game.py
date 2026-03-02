@@ -535,7 +535,6 @@ class Game:
 
     def restart_game(self):
         self.__init__()
-        self.target_phase = PhaseState.RESTART_GAME
 
     def hand_to_ranks(self, hand):
         return "".join(c[-1] for c in hand)

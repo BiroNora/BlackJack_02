@@ -386,7 +386,7 @@ def retake_bet(user, game):
                 "status": "success",
                 "current_tokens": user.tokens,
                 "game_state": GameSerializer.serialize_by_context(game, request.path),
-                "game_state_hint": "BET_SUCCESSFULLY_RETRAKEN",
+                "game_state_hint": "BET_SUCCESSFULLY_RETAKEN",
             }
         ),
         200,
@@ -716,7 +716,7 @@ def split_stand_and_rewards(user, game):
     game_data = GameSerializer.serialize_by_context(game, request.path)
 
     game_data["pre_phase"] = (
-            PhaseState.OUT_OF_TOKENS.value if user.tokens <= 0 else
+            PhaseState.OUT_OF_TOKENS.value if user.tokens <= 0 and (not game_data["players"] or len(game_data["players"]) == 0) else
             PhaseState.BETTING.value
         )
 
