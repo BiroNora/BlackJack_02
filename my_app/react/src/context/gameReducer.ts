@@ -25,7 +25,7 @@ export const initialGameDataState: GameDataState = {
   gameState: {
     currentGameState: 'LOADING',
     player: { id: "NONE", hand: [], sum: 0, hand_state: 0, can_split: false, stated: false, bet: 0, has_hit: 0 },
-    dealer_masked: { hand: [], sum: 0, can_insure: false },
+    dealer_masked: { hand: [], sum: 0, can_insure: false, score: 0 },
     dealer_unmasked: { hand: [], sum: 0, hand_state: 0, natural_21: 0 },
     aces: false,
     natural_21: 0,
