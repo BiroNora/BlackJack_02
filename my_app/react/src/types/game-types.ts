@@ -52,7 +52,6 @@ export interface DealerMaskedData {
   hand: string[];
   sum: number;
   can_insure: boolean;
-  nat_21: number;
 }
 
 export interface DealerUnmaskedData {
