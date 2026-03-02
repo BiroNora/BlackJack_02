@@ -89,14 +89,3 @@ export function extractGameStateData1(
 export function formatNumber(number: number) {
   return number.toLocaleString("en-US");
 }
-
-export function maskedScore(str: string) {
-  const tens = ["K", "Q", "J", "1"];
-  if (str === "A") {
-    return 11;
-  } else if (tens.includes(str)) {
-    return 10;
-  } else {
-    return Number(str);
-  }
-}

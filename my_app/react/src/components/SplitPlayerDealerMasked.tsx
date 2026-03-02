@@ -1,7 +1,6 @@
 import React, { type JSX } from "react";
 import type { GameStateData } from "../types/game-types";
 import "../styles/playerDealer.css";
-import { maskedScore } from "../utilities/utils";
 
 interface TableProps {
   gameState: GameStateData;
@@ -9,9 +8,7 @@ interface TableProps {
 
 const SplitPlayerDealerMasked: React.FC<TableProps> = ({ gameState }) => {
   const { player, dealer_masked } = gameState;
-
-  const dealerMasked = dealer_masked.hand[1][1];
-  const dealerMaskedScore = maskedScore(dealerMasked);
+  const dealerMaskedScore = dealer_masked.sum;
 
   const formatCard = (card: string): JSX.Element | string => {
     if (card.trim() === "✪") {

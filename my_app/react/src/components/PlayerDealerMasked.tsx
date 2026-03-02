@@ -2,7 +2,6 @@ import React, { type JSX } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { GameStateData } from "../types/game-types";
 import "../styles/playerDealer.css";
-import { maskedScore } from "../utilities/utils";
 
 interface TableProps {
   gameState: GameStateData;
@@ -14,9 +13,7 @@ const PlayerDealerMasked: React.FC<TableProps> = ({
   showInsLost,
 }) => {
   const { player, dealer_masked } = gameState;
-
-  const dealerMasked = dealer_masked.hand[1][1];
-  const dealerMaskedScore = maskedScore(dealerMasked);
+  const dealerMaskedScore = dealer_masked.sum;
 
   const formatCard = (card: string): JSX.Element | string => {
     if (card.trim() === "✪") {
@@ -78,7 +75,7 @@ const PlayerDealerMasked: React.FC<TableProps> = ({
 
   const formattedPlayerHand = formatHand(playerHand);
   const formattedDealerHand = formatHand(dealerHand);
-  
+
   const fadeProps = {
     initial: { opacity: 0 },
     animate: {
