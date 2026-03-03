@@ -11,7 +11,9 @@ class GameSerializer:
         if "recover_game_state" in p:
             if game.players or game.split_req > 0:
                 return GameSerializer.serialize_split_hand(game)
-            return GameSerializer.serialize_initial_and_hit_state(game, is_recovery=True)
+            return GameSerializer.serialize_initial_and_hit_state(
+                game, is_recovery=True
+            )
 
         if "split_stand_and_rewards" in p:
             return GameSerializer.serialize_split_stand_and_rewards(game)
@@ -69,6 +71,7 @@ class GameSerializer:
         )
 
         calc_phase = (
+            PhaseState.NONE if not game.bet_list else
             PhaseState.SHUFFLING
             if (d_len == Game.TOTAL_INITIAL_CARDS or d_len < 60)
             else PhaseState.INIT_GAME
@@ -91,13 +94,19 @@ class GameSerializer:
         }
 
     @staticmethod
-    def serialize_initial_and_hit_state(game, is_recovery: bool = False) -> Dict[str, Any]:
+    def serialize_initial_and_hit_state(
+        game, is_recovery: bool = False
+    ) -> Dict[str, Any]:
         return {
             "player": game.player,
             "dealer_masked": game.dealer_masked,
             "deck_len": game.get_deck_len(),
             "bet": game.bet,
-            "target_phase": PhaseState.MAIN_TURN.value if is_recovery else game.get_target_phase().value,
+            "target_phase": (
+                PhaseState.MAIN_TURN.value
+                if is_recovery
+                else game.get_target_phase().value
+            ),
         }
 
     @staticmethod
@@ -120,7 +129,6 @@ class GameSerializer:
             "bet": game.bet,
             "target_phase": game.get_target_phase().value,
             "pre_phase": game.get_pre_phase().value if game.get_pre_phase() else None,
-
         }
         if game.natural_21 == 3:
             state["dealer_unmasked"] = game.dealer_unmasked
@@ -138,7 +146,7 @@ class GameSerializer:
 
     @staticmethod
     def serialize_reward_state(game) -> Dict[str, Any]:
-            return {
+        return {
             "player": game.player,
             "dealer_unmasked": game.dealer_unmasked,
             "deck_len": game.get_deck_len(),
