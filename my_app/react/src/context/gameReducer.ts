@@ -28,7 +28,6 @@ export const initialGameDataState: GameDataState = {
     dealer_masked: { hand: [], sum: 0, can_insure: false, score: 0 },
     dealer_unmasked: { hand: [], sum: 0, hand_state: 0, natural_21: 0 },
     aces: false,
-    natural_21: 0,
     winner: 0,
     players: {},
     split_req: 0,

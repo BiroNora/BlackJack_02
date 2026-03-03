@@ -25,7 +25,6 @@ export interface GameStateData {
   dealer_masked: DealerMaskedData;
   dealer_unmasked: DealerUnmaskedData;
   aces: boolean;
-  natural_21: number;
   winner: number;
   players: Record<string, PlayerData>;
   split_req: number;

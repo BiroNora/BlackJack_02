@@ -67,7 +67,6 @@ export function extractGameStateData1(
       dealer_masked: rawGameState.dealer_masked as DealerMaskedData,
       dealer_unmasked: rawGameState.dealer_unmasked as DealerUnmaskedData,
       aces: rawGameState.aces,
-      natural_21: rawGameState.natural_21 as number,
       winner: rawGameState.winner as number,
       players: rawGameState.players as Record<string, PlayerData>,
       split_req: rawGameState.split_req as number,
