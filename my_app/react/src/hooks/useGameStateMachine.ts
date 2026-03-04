@@ -402,15 +402,15 @@ export function useGameStateMachine(): GameStateMachineHookResult {
         const data = await handleApiAction(getShuffling);
         const response = extractGameStateData(data);
 
-        const currentDeckLen = response?.deck_len ?? state.totalInitialCards;
-        dispatch({ type: 'SET_DECK_LEN', payload: currentDeckLen });
-
         if (response) {
           // A setTimeout ID-t elmentjük, hogy törölhessük ha kell
           timeoutIdRef.current = window.setTimeout(() => {
             if (isMountedRef.current) {
-              isProcessingRef.current = false;
+              const currentDeckLen = response.deck_len ?? state.totalInitialCards;
+
+              dispatch({ type: 'SET_DECK_LEN', payload: currentDeckLen });
               transitionToState(response?.target_phase as GameState, response);
+              isProcessingRef.current = false;
             }
           }, 4000);
         }
