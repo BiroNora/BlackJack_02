@@ -378,7 +378,9 @@ def retake_bet(user, game):
         raise ValueError("No bet to retake.")
 
     amount_to_return = game.retake_bet_from_bet_list()
-    user.tokens += amount_to_return
+
+    if amount_to_return > 0:
+        user.tokens += amount_to_return
 
     return (
         jsonify(
