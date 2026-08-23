@@ -4,7 +4,7 @@ export function Restart() {
   return (
     <div className="loading-container-centered">
       <div>
-        <h1>W E L L C O M E B A C K</h1>
+        <h1>W E L L C O M E  B A C K</h1>
         <div className="bank3 merriweather">Your New Tokens: 1000</div>
         <div>
           <div className="bank2 merriweather">
